@@ -1,0 +1,26 @@
+
+---
+BambooBuildConnector:
+
+    AgileCentral:
+        Server    :  rally1.rallydev.com
+        APIKey      :  SECURED-gAAAAABZSgYAepICREnXlP6lzqBJn__vL2W2QwLnnWsAtCe-QzYACPP2fkZVurruDi5LNUg9Co2BgKvfUc0UgONV6KGVtkJuc4nhvJMjlSAPBBzDB8B5VYHUN0F5Bk6O951YajBKUNE5
+        Workspace :  Alligators BLD Unigrations
+
+    Bamboo:
+        Protocol  :  http
+        Server    :  localhost
+        Port      :  8085
+        Username    :  SECURED-gAAAAABZSgcIwfGONlkH63_Pa7X227Y75gWf7n4bo0_EROAYN_4oBdlEeBKAX3yRkZMXLacHR23Fr0gq6HAiQgNrmIYCkFNXgQ==
+        Password    :  SECURED-gAAAAABZSgYAiCy9l8zoPtViWsMbmKKOTzw2LpgAy_AdwWq8hqUcaL-XGSruDqS-O1iIacnLcC6ts4iKLuLDOHSyEwv6y_EM9A==
+        AgileCentral_DefaultBuildProject :  Bamboo
+
+        Projects:
+            - Project: Fernandel
+              Plans:
+                  - DonCamillo
+                  - Ludovic Cruchot
+
+
+...
+

@@ -1,0 +1,31 @@
+
+---
+BambooBuildConnector:
+
+    AgileCentral:
+        Server    :  rally1.rallydev.com
+        APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8 #yeti@rallydev.com:Vistabahn
+        Workspace :  Alligators BLD Unigrations
+
+    Bombons:
+        Protocol  :  http
+        Server    :  localhost
+        Port      :  8085
+        Username  :  toto
+        Password  :  totogithub
+        AgileCentral_DefaultBuildProject :  Bamboo
+
+        Projects:
+            - Project: Fernandel
+              Plans:
+                  - DonCamillo
+                  - Ludovic Cruchot
+
+    Service:
+        Preview       : True
+        LogLevel      : DEBUG
+        MaxBuilds     : 50
+        ShowVCSData   : False
+
+...
+
