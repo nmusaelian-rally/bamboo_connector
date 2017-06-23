@@ -7,7 +7,7 @@ from bldeif.utils.konfabulus    import Konfabulator
 from bldeif.utils.klog          import ActivityLogger
 from bldeif.utils.eif_exception import ConfigurationError, NonFatalConfigurationError
 
-logger = ActivityLogger('logs/test_db_connection.log')
+logger = ActivityLogger('logs/test_bamboo_conn.log')
 
 def trash_log(file_name):
     try:
@@ -72,3 +72,10 @@ def test_bad_section():
     with pytest.raises(ConfigurationError) as excinfo:
         useConfig(config_file, False)
     assert problem in str(excinfo.value)
+
+def test_projects():
+    konf = Konfabulator('camillo.yml', logger, True)
+    projects = konf.topLevel('Bamboo').get('Projects', None)
+    assert projects == [{'Plans': ['DonCamillo', 'Ludovic Cruchot'],
+                         'AgileCentral_Project': 'Rally Fernandel', 'Project': 'Fernandel'}]
+

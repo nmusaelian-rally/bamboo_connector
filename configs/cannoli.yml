@@ -21,6 +21,11 @@ BambooBuildConnector:
               Plans:
                   - DonCamillo
                   - Ludovic Cruchot
+            - Project: Cannoli
+              AgileCentral_Project: Rally Fernandel
+              Plans:
+                  - Chocolate Cannolo
+                  - No Cannolo for You
 
     Service:
         Preview       : True

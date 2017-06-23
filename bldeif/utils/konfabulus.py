@@ -108,12 +108,12 @@ class Konfabulator:
             raise ConfigurationError('First section in configs file must be AgileCentral section')
         self.top_level_sequence.append('AgileCentral')
 
-        self.db_header = section_headers.pop(0).strip().replace(':', '')
+        self.bld_header = section_headers.pop(0).strip().replace(':', '')
 
-        if self.db_header not in ['Bamboo']:
+        if self.bld_header not in ['Bamboo']:
             problem = 'Second section in config file must be Bamboo'
             raise ConfigurationError(problem)
-        self.top_level_sequence.append(self.db_header)
+        self.top_level_sequence.append(self.bld_header)
 
         # because the EnvironmentKey needs an AgileCentral Workspace and Project, set that up here
         workspace = self.config['AgileCentral']['Workspace']
@@ -204,18 +204,17 @@ class Konfabulator:
             problem = 'Attempt to retrieve non-existent top level configs section for %s'
             raise ConfigurationError(problem % section_name)
 
-    def connectionClassName(self, section_name, prefix=None):
+    def connectionClassName(self, section_name):
         if section_name not in self.config:
-            raise ConfigurationError(
-                'Attempt to identify connection class name for %s, operation not supported' % section_name)
-        if section_name not in ['AgileCentral', 'Bamboo']:
-            raise ConfigurationError('Candidate connection class name "%s" not viable for operation' % section_name)
+            raise ConfigurationError('Attempt to identify connection class name for %s, operation not supported'% section_name)
+        if section_name not in ['AgileCentral', self.bld_header]:
+            raise ConfigurationError('Candidate connection class name "%s" not viable for operation'% section_name)
         section = self.config[section_name]
-        if section_name == 'AgileCentral':
-            class_name = 'AgileCentralConnection'
+        if 'Class' in section:
+            class_name = section['Class']
         else:
-            if section_name != 'Bamboo':
-                raise ConfigurationError('Unrecognized section naming a Connection subclass: "%s"' % section_name)
-            class_name = "%sBambooConnection" %  prefix
+            class_name = 'AgileCentralConnection'
+            if section_name != 'AgileCentral':
+                class_name = '%sConnection' % self.bld_header
 
         return class_name
