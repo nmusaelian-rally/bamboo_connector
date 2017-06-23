@@ -10,6 +10,7 @@ from collections import Counter
 
 from bldeif.connection import BLDConnection
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
+from bldeif.utils.time_helper import TimeHelper
 
 quote = urllib.parse.quote
 
@@ -251,14 +252,14 @@ class BambooConnection(BLDConnection):
 
     #def obtainBambooInventory(self):
     #def obtainRawInventory(self):
-    def getRawBuilds(self):
-        raw_builds = []
+    def getRecentBuilds(self, ref_time):
+        builds = []
         all_projects = self.getProjects()
         plan_keys = self.getPlans(all_projects)
         for key in plan_keys:
-            plan_builds = self.getBuilds(key)
-            raw_builds.extend(plan_builds)
-        # print(len(raw_builds))
+            plan_builds = self.getBuildsPerPlan(key, ref_time)
+            builds.extend(plan_builds)
+        print(len(builds))
 
 
     def getProjects(self):
@@ -292,7 +293,7 @@ class BambooConnection(BLDConnection):
         return plan_keys
 
 
-    def getBuilds(self, key):
+    def getBuildsPerPlan(self, key, ref_time):
         """
         curl --user toto:totogithub -g http://localhost:8085/rest/api/latest/result/FER-DON.json?expand=results[0:5].result | python -m json.tool
 
@@ -310,15 +311,27 @@ class BambooConnection(BLDConnection):
                     ]
          Is it possible to get revision's commit message and timestamp?
         """
-        builds = []
-        endpoint = 'result/%s.json?expand=results[0:5].result.vcsRevisions' % key
+        raw_builds = []
+        endpoint = 'result/%s.json?expand=results[0:100].result.vcsRevisions' % key
         headers = {'Content-Type': 'application/json'}
         url = "%s/%s" % (self.base_url, endpoint)
         response = requests.get(url, auth=self.creds, proxies=self.http_proxy, headers=headers)
         if response.status_code == 200:
             result = response.json()
-            builds = result['results']['result']
-        return builds
+            raw_builds = result['results']['result']
+            qualifying_builds = self.extractQualifyingBuilds(raw_builds, ref_time)
+        return qualifying_builds
+
+    def extractQualifyingBuilds(self, raw_builds, ref_time):
+        builds = []
+        for record in raw_builds:
+            # print(record)
+            timestamp = TimeHelper(record['buildCompletedTime']).getTimestampFromString()
+            if timestamp < ref_time:
+                break
+            build = BambooBuild(record)
+            builds.append(build)
+        return builds[::-1]
 
 
     def validate(self):
@@ -397,22 +410,22 @@ class BambooConnection(BLDConnection):
     #             self.log.debug("        %s" % job.name)
 
 
-    def getRecentBuilds(self, ref_time):
-        """
-            Obtain all Builds created in Jenkins at or after the ref_time parameter
-            which is a struct_time object of:
-               (tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst)
-
-            Construct a dict keyed by Jenkins-View-Name::AgileCentral_ProjectName
-            with a list of JenkinsBuild items for each key
-        """
-        zulu_ref_time = time.localtime(time.mktime(ref_time))  # ref_time is already in UTC, so don't convert again (hence use of time.localtime()
-        ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", zulu_ref_time)
-        pending_operation = "Detecting recently added Jenkins Builds (added on or after %s)"
-        self.log.info(pending_operation % ref_time_readable)
-
-        builds = {}
-        recent_builds_count = 0
+    # def getRecentBuilds(self, ref_time):
+    #     """
+    #         Obtain all Builds created in Jenkins at or after the ref_time parameter
+    #         which is a struct_time object of:
+    #            (tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst)
+    #
+    #         Construct a dict keyed by Jenkins-View-Name::AgileCentral_ProjectName
+    #         with a list of JenkinsBuild items for each key
+    #     """
+    #     zulu_ref_time = time.localtime(time.mktime(ref_time))  # ref_time is already in UTC, so don't convert again (hence use of time.localtime()
+    #     ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", zulu_ref_time)
+    #     pending_operation = "Detecting recently added Jenkins Builds (added on or after %s)"
+    #     self.log.info(pending_operation % ref_time_readable)
+    #
+    #     builds = {}
+    #     recent_builds_count = 0
 
         # for job in self.jobs:
         #     jenkins_job = self.inventory.getJob(job['Job'])
@@ -432,22 +445,22 @@ class BambooConnection(BLDConnection):
         #     jbf.write((log_msg % recent_builds_count) + "\n")
         #     jbf.close()
 
-        for project in self.projects:
-            # an element of that list looks like this:
-            '''
-            {'Fernandel': {'AgileCentral_Project': 'Rally Fernandel', 'Plans': ['DonCamillo', 'Ludovic Cruchot']}}
-            '''
-            for project_name, project_info in project.items():
-                for plan in project_details['Plans']:
-                    bamboo_plan = self.inventory.getPlan(plan, project_name)
-                    ac_project = project_details['AgileCentral_Project']  #, self.ac_project)
-                    key = '%s::%s' % (project_name, ac_project)
-                    if key not in builds:
-                        builds[key] = {}
-                    builds[key][bamboo_plan] = self.getBuildHistory('All', bamboo_plan, zulu_ref_time)
-
-
-        return builds
+        # for project in self.projects:
+        #     # an element of that list looks like this:
+        #     '''
+        #     {'Fernandel': {'AgileCentral_Project': 'Rally Fernandel', 'Plans': ['DonCamillo', 'Ludovic Cruchot']}}
+        #     '''
+        #     for project_name, project_info in project.items():
+        #         for plan in project_details['Plans']:
+        #             bamboo_plan = self.inventory.getPlan(plan, project_name)
+        #             ac_project = project_details['AgileCentral_Project']  #, self.ac_project)
+        #             key = '%s::%s' % (project_name, ac_project)
+        #             if key not in builds:
+        #                 builds[key] = {}
+        #             builds[key][bamboo_plan] = self.getBuildHistory('All', bamboo_plan, zulu_ref_time)
+        #
+        #
+        # return builds
 
     def getBuildHistory(self, view, job, ref_time):
         JOB_BUILDS_ENDPOINT = "/api/json?tree=builds[%s]" % BUILD_ATTRS
@@ -469,15 +482,6 @@ class BambooConnection(BLDConnection):
         qualifying_builds = self.extractQualifyingBuilds(job.name, folder_name, ref_time, raw_builds)
         return qualifying_builds
 
-    def extractQualifyingBuilds(self, job_name, folder_name, ref_time, raw_builds):
-        builds = []
-        for brec in raw_builds:
-            # print(brec)
-            build = JenkinsBuild(job_name, brec, job_folder=folder_name)
-            if build.id_as_ts < ref_time:  # when true build time is older than ref_time, don't consider this job
-                break
-            builds.append(build)
-        return builds[::-1]
 
 
 ##############################################################################################
@@ -628,6 +632,7 @@ class BambooInventory:
 
     ###########################################################################################
 
+
 class BambooPlan:
     def __init__(self, raw):
         self.full_name = raw['name']
@@ -641,44 +646,30 @@ class BambooBuild:
     def __init__(self, raw):
         """
         """
+        self.id        = raw['id']
         self.number    = int(raw['number'])
         self.result    = raw['state']
         self.result    = 'INCOMPLETE' if self.result == 'ABORTED' else self.result
         self.key       = raw['buildResultKey'] #FER-DON-45
-        self.started   = raw['buildStartedTime'] # "2017-06-12T13:55:39.712-06:00"
-        self.completed = raw['buildCompletedTime']
         self.link      = raw['link']['href']  # http://localhost:8085/rest/api/latest/result/FER-DON-45
         self.url       = self.link.replace('rest/api/latest/result','browse')        # localhost:8085/browse/FER-DON-45
         self.finished  = raw['finished']
-
-        if re.search('^\d+$', self.id_str):
-            self.id_as_ts = time.gmtime(self.timestamp / 1000)
-            self.id_str = str(self.timestamp)
-            self.Id = self.id_str
-        else:
-            self.id_as_ts = time.strptime(self.id_str, '%Y-%m-%d_%H-%M-%S')
-
-        #self.started   = time.strftime('%Y-%m-%d %H:%M:%SZ', time.gmtime(self.startes / 1000))
-        #self.completed = time.strftime('%Y-%m-%d %H:%M:%SZ', time.gmtime(self.completed / 1000))
+        self.plan      = BambooPlan(raw['plan'])
+        self.completedTime = raw['buildCompletedTime']  # "2017-06-12T13:55:39.712-06:00"
+        self.timestamp = TimeHelper(record['buildCompletedTime']).getTimestampFromString()
+        self.project   = ''
         self.duration = int(raw['buildDuration'])
-        whole, millis = divmod(self.duration, 1000)
-        hours, leftover = divmod(whole, 3600)
-        minutes, secs = divmod(leftover, 60)
-        if hours:
-            duration = "%d:%02d:%02d.%03d" % (hours, minutes, secs, millis)
-        else:
-            if minutes >= 10:
-                duration = "%02d:%02d.%03d" % (minutes, secs, millis)
-            else:
-                duration = " %d:%02d.%03d" % (minutes, secs, millis)
-
-        self.elapsed = "%12s" % duration
 
 
-        revisions    = raw['vcsRevisions']['vcsRevision']
-        self.changeSets   = []
-        for rev in revisions:
-            self.changeSets.append({'repo':rev['repositoryName'],'revision':rev['vcsRevisionKey']})
+
+        # revisions    = raw['vcsRevisions']['vcsRevision']
+        # self.changeSets   = []
+        # for rev in revisions:
+        #     self.changeSets.append({'repo':rev['repositoryName'],'revision':rev['vcsRevisionKey']})
+
+
+
+
 
 
 
