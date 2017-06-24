@@ -2,8 +2,8 @@ import pytest
 import yaml
 import datetime
 from collections import OrderedDict
-#import spec_helper as sh
-#import build_spec_helper as bsh
+import re
+import time
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError, logAllExceptions
 from bldeif.utils.klog       import ActivityLogger
 from bldeif.utils.konfabulus import Konfabulator
@@ -11,17 +11,24 @@ from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector import BLDConnector
 from bldeif.agicen_bld_connection import AgileCentralConnection
 from bldeif.bld_connector_runner import BuildConnectorRunner
-import re
+
+from bldeif.utils.time_helper import TimeHelper
 
 logger = ActivityLogger('logs/test_bamboo_conn.log')
 
 def test_bldconn_projects():
     konf = Konfabulator('cannoli.yml', logger, True)
-    bld_connector = BLDConnector(konf, logger)
-    project_details = bld_connector.bld_conn.projects[0]
+    bld_connector  = BLDConnector(konf, logger)
+    bld_connection = bld_connector.bld_conn
+    project_details = bld_connection.projects[0]
     assert 'Fernandel'  in project_details
     assert 'DonCamillo' in project_details['Fernandel']['Plans']
     assert 'Ludovic Cruchot' in project_details['Fernandel']['Plans']
+    last_run = '2017-06-22 20:56:18 Z'
+    ref_time = TimeHelper(last_run).getTimestampFromString()
+    #last_run_zulu = time.strftime(format, time.gmtime(epoch))
+    #ac_ref_time, bld_ref_time = bld_connector.getRefTimes(epoch)
+    recent_bld_builds = bld_connection.getRecentBuilds(ref_time)
 
 
 
