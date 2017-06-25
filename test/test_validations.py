@@ -24,11 +24,10 @@ def test_bldconn_projects():
     assert 'Fernandel'  in project_details
     assert 'DonCamillo' in project_details['Fernandel']['Plans']
     assert 'Ludovic Cruchot' in project_details['Fernandel']['Plans']
-    last_run = '2017-06-22 20:56:18 Z'
+    last_run = '2017-06-24 00:00:00 Z'
     ref_time = TimeHelper(last_run).getTimestampFromString()
-    #last_run_zulu = time.strftime(format, time.gmtime(epoch))
-    #ac_ref_time, bld_ref_time = bld_connector.getRefTimes(epoch)
     recent_bld_builds = bld_connection.getRecentBuilds(ref_time)
+    print(recent_bld_builds)
 
 
 

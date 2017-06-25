@@ -52,7 +52,6 @@ class BambooConnection(BLDConnection):
         self.prefix     = config.get("Prefix", '')
         self.username       = config.get("Username", '')
         self.password   = config.get("Password", '')
-        #self.api_token  = config.get("API_Token", '')
         self.debug      = config.get("Debug", False)
         self.max_items  = config.get("MaxItems", 1000)
         self.projects   = []
@@ -93,16 +92,13 @@ class BambooConnection(BLDConnection):
             p[project] = details
             self.projects.append(p)
             # an element of that list looks like this:
-            '''
-            {'Fernandel': {'AgileCentral_Project': 'Rally Fernandel', 'Plans': ['DonCamillo', 'Ludovic Cruchot']}}
-            '''
-        print (self.projects)
+            #{'Fernandel': {'AgileCentral_Project': 'Rally Fernandel', 'Plans': ['DonCamillo', 'Ludovic Cruchot']}}
+
+        self.builds = {}
+
 
     def connect(self):
-        """
-        """
         self.log.info("Connecting to Bamboo")
-
         self.backend_version = self._getBambooVersion()
         self.log.info("Connected to Bamboo server: %s running at version %s" % (self.server, self.backend_version))
         self.log.info("Url: %s" % self.base_url)
@@ -119,8 +115,6 @@ class BambooConnection(BLDConnection):
         except Exception as msg:
             self.log.error(msg)
         if response.status_code >= 300:
-            # mo = re.search(r'<title>.*?</title>', response.text)
-            # msg = mo.group(0) if mo else 'Connection error to Jenkins'
             raise ConfigurationError('%s  status_code: %s' % (msg, response.status_code))
 
         # self.log.debug(response.headers)
@@ -129,19 +123,17 @@ class BambooConnection(BLDConnection):
             return result['version']
 
     def disconnect(self):
-        """
-            Just reset our bamboo instance variable to None
-        """
         self.bamboo = None
 
     def getRecentBuilds(self, ref_time):
-        builds = []
+        recent_builds_count = 0
         all_projects = self.getProjects()
-        plan_keys = self.getPlans(all_projects)
-        for key in plan_keys:
-            plan_builds = self.getBuildsPerPlan(key, ref_time)
-            builds.extend(plan_builds)
-        print(len(builds))
+
+        self.getPlans(all_projects)
+
+        for plan in self.plans:
+            self.getBuildsPerPlan(plan.key, ref_time)
+        return self.builds
 
 
     def getProjects(self):
@@ -161,18 +153,11 @@ class BambooConnection(BLDConnection):
 
     def getPlans(self, all_projects):
         plan_keys = []
-        plans     = []
         conf_project_names = [proj_name for project in self.projects for proj_name in project.keys()]
         selected_projects = [project for project in all_projects if project['name'] in conf_project_names]
-        # populate a list of plan keys that will be used to construct build endpoints for respective project-plan pairs:
-        # traverse selected_projects[i]['plans']['plan'][j]['key']
-        # to produce ['FER-DON', 'FER-LC', 'FER-RET']
         for project in selected_projects:
             for raw_plan in project['plans']['plan']:
-                plans.append(BambooPlan(raw_plan))
-                plan_keys.append(raw_plan['key'])
-        self.inventory = BambooInventory(plans)
-        return plan_keys
+                self.plans.append(BambooPlan(raw_plan))
 
 
     def getBuildsPerPlan(self, key, ref_time):
@@ -201,21 +186,30 @@ class BambooConnection(BLDConnection):
         if response.status_code == 200:
             result = response.json()
             raw_builds = result['results']['result']
-            qualifying_builds = self.extractQualifyingBuilds(raw_builds, ref_time)
-        return qualifying_builds
+            if raw_builds:
+                self.extractQualifyingBuilds(raw_builds, ref_time)
 
     def extractQualifyingBuilds(self, raw_builds, ref_time):
-        builds = []
+        ac_project = self.getAgileCentralProject(raw_builds[0]['projectName'])
+        if ac_project not in self.builds:
+            self.builds[ac_project] = {}
+        plan = BambooPlan(raw_builds[0]['plan'])
+        self.builds[ac_project][plan] = []
+
         for record in raw_builds:
-            # print(record)
             timestamp = TimeHelper(record['buildCompletedTime']).getTimestampFromString()
-            # timestamp is int, ref_time is time.struct_time
             if timestamp < ref_time:
                 break
             build = BambooBuild(record)
-            builds.append(build)
-        return builds[::-1]
+            self.builds[ac_project][plan].append(build)
+        self.builds[ac_project][plan][::-1]
 
+    def getAgileCentralProject(self, bamboo_project_name):
+        ac_projects = [ac_proj for project in self.projects
+                               for key, proj_data in project.items() if key == bamboo_project_name
+                                   for key, ac_proj in proj_data.items() if key == 'AgileCentral_Project']
+        if ac_projects:
+            return ac_projects[0]
 
     def validate(self):
         """
@@ -250,25 +244,6 @@ class BambooConnection(BLDConnection):
             self.log.debug('Plan: %s' % plan)
 
 
-
-
-##############################################################################################
-
-class BambooInventory:
-    def __init__(self, plans):
-        self.plans = plans
-
-    def getPlan(self, plan_name, project_name):
-        plans = []
-        matching_plans = [plan for plan in self.plans[project_name].plan if plan.name == plan_name]
-        if matching_plans:
-            plans.extend(matching_plans)
-        return plans[0]
-
-
-###########################################################################################
-
-
 class BambooPlan:
     def __init__(self, raw):
         self.full_name = raw['name']
@@ -278,12 +253,11 @@ class BambooPlan:
         self.url       = self.link.replace('rest/api/latest/plan', 'browse')
         self.project   = self.full_name.replace(' - %s' % self.name, '')
 
-        #     def __str__(self):
-        #         vj = "%s::%s" % (self.project, self.shortName)
-        #         return "%s  %s" % (vj, self._type)
-        #
-        #     def __repr__(self):
-        #         return str(self)
+        def __str__(self):
+            return "%s::%s" % (self.project, self.shortName)
+
+        def __repr__(self):
+            return str(self)
 
 ###########################################################################################
 
@@ -302,127 +276,6 @@ class BambooBuild:
         self.plan      = BambooPlan(raw['plan'])
         self.completedTime = raw['buildCompletedTime']  # "2017-06-12T13:55:39.712-06:00"
         self.timestamp = TimeHelper(raw['buildCompletedTime']).getTimestampFromString()
-        self.project   = ''
+        self.project   = raw['projectName']
         self.duration = int(raw['buildDuration'])
 
-
-
-        # revisions    = raw['vcsRevisions']['vcsRevision']
-        # self.changeSets   = []
-        # for rev in revisions:
-        #     self.changeSets.append({'repo':rev['repositoryName'],'revision':rev['vcsRevisionKey']})
-
-
-#     def extractChangeSetInformation(self, json, cs_label):
-#         """
-#              A FreestyleJob build has changeset info in the json under the 'changeSet' element, but
-#              WorkflowRun build has the equivalent changeset info under the 'changeSets' element as a list.
-#              Here we transform the FreestyleJob changeset info into the one element 'changeSets' list so
-#              that the processing is conistent.
-#         """
-#         try:
-#             if cs_label == 'changeSet':
-#                 json['changeSets'] = [json['changeSet']]
-#             if len(json[cs_label]) == 0:
-#                 return
-#             try:
-#                 self.vcs = json['changeSets'][0]['kind']
-#             except Exception as msg:
-#                 self.log.warning(
-#                     'JenkinsBuild constructor unable to determine VCS kind, %s, marking vcs type as unknown' % (msg))
-#                 self.log.warning(
-#                     "We accessed your job's build JSON with this param %s and did not see 'kind' value" % BUILD_ATTRS)
-#             self.revisions = json['changeSets'][0]['revisions'] if cs_label in json and 'revisions' in json['changeSets'][0] else None
-#             getRepoName = {'git': self.ripActionsForRepositoryName,
-#                            'svn': self.ripRevisionsForRepositoryName,
-#                            None: self.ripNothing
-#                            }
-#             self.repository = getRepoName[self.vcs]()
-#             if self.vcs != 'unknown':
-#                 for ch in json['changeSets']:
-#                     self.changeSets.extend(self.ripChangeSets(self.vcs, ch['items']))
-#             csd = {changeset.commitId: changeset for changeset in self.changeSets}
-#             self.changeSets = [chgs for chgs in csd.values()]
-#         except Exception as msg:
-#             self.log.warning('JenkinsBuild constructor unable to process %s information, %s' % (cs_label, msg))
-#
-#
-#     def ripActionsForRepositoryName(self):
-#         repo = ''
-#         repo_info = [self.makeup_scm_repo_name(item['remoteUrls'][0]) for item in self.actions if 'remoteUrls' in item]
-#         if repo_info:
-#             repo = repo_info[0]
-#         return repo
-#
-#     def ripRevisionsForRepositoryName(self):
-#         """ for use with Subversion VCS
-#         """
-#         if not self.revisions:
-#             return ''
-#         repo_info = self.revisions[0]['module']
-#         repo_name = repo_info.split('/')[-1]
-#         return repo_name
-#
-#     def ripNothing(self):
-#         return ''
-#
-#     def makeup_scm_repo_name(self, remote_url):
-#         remote_url = re.sub(r'\/\.git$', '', remote_url)
-#         max_length = 256
-#         return remote_url.split('/')[-1][-max_length:]
-#
-#     def ripChangeSets(self, vcs, changesets):
-#         tank = [JenkinsChangeset(vcs, cs_info) for cs_info in changesets]
-#         return tank
-#
-#     def as_tuple_data(self):
-#         start_time = datetime.datetime.utcfromtimestamp(self.timestamp / 1000.0).strftime('%Y-%m-%dT%H:%M:%SZ')
-#         build_data = [('Number', self.number),
-#                       ('Status', str(self.result)),
-#                       ('Start', start_time),
-#                       ('Duration', self.duration / 1000.0),
-#                       ('Uri', self.url)]
-#         return build_data
-#
-#     def __repr__(self):
-#         name = "name: %s" % self.name
-#         ident = "id_str: %s" % self.id_str
-#         number = "number: %s" % self.number
-#         result = "result: %s" % self.result
-#         finished = "finished: %s" % self.finished
-#         duration = "duration: %s" % self.duration
-#         nothing = ""
-#         pill = "  ".join([name, ident, number, result, finished, duration, nothing])
-#         return pill
-#
-#     def __str__(self):
-#         elapsed = self.elapsed[:]
-#         if elapsed.startswith('00:'):
-#             elapsed = '   ' + elapsed[3:]
-#         if elapsed.startswith('   00:'):
-#             elapsed = '      ' + elapsed[6:]
-#         bstr = "%s Build # %5d   %-10.10s  Started: %s  Finished: %s   Duration: %s  URL: %s" % \
-#                (self.name, self.number, self.result, self.started, self.finished, elapsed, self.url)
-#         return bstr
-#
-#
-# #############################################################################################
-#
-# class JenkinsChangeset:
-#     def __init__(self, vcs, commit):
-#         self.vcs       = vcs
-#         self.commitId  = commit['commitId']
-#         self.timestamp = commit['timestamp']
-#         self.message   = commit['msg']
-#         self.uri       = commit['paths'][0]['file'] if commit['paths'] else '.'
-#
-#     def __str__(self):
-#         changeset = "   VCS %s  Commit ID # %s  Timestamp: %s  Message: %s " % \
-#                     (self.vcs, self.commitId, self.timestamp, self.message)
-#         return changeset
-#
-#
-# class JenkinsChangesetFile:
-#     def __init__(self, item):
-#         self.action    = item['editType']
-#         self.file_path = item['file']
