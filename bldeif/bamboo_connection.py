@@ -11,6 +11,7 @@ from collections import Counter
 from bldeif.connection import BLDConnection
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 from bldeif.utils.time_helper import TimeHelper
+from bldeif.utils.status_matchmaker import Matchmaker
 
 quote = urllib.parse.quote
 
@@ -126,6 +127,7 @@ class BambooConnection(BLDConnection):
         self.bamboo = None
 
     def getRecentBuilds(self, ref_time):
+        ref_time = time.mktime(ref_time)
         recent_builds_count = 0
         all_projects = self.getProjects()
 
@@ -190,19 +192,30 @@ class BambooConnection(BLDConnection):
                 self.extractQualifyingBuilds(raw_builds, ref_time)
 
     def extractQualifyingBuilds(self, raw_builds, ref_time):
-        ac_project = self.getAgileCentralProject(raw_builds[0]['projectName'])
-        if ac_project not in self.builds:
-            self.builds[ac_project] = {}
-        plan = BambooPlan(raw_builds[0]['plan'])
-        self.builds[ac_project][plan] = []
+        build_count = 0
+        # ac_project = self.getAgileCentralProject(raw_builds[0]['projectName'])
+        # if ac_project not in self.builds:
+        #     self.builds[ac_project] = {}
+        # plan = BambooPlan(raw_builds[0]['plan'])
+        # self.builds[ac_project][plan] = []
 
         for record in raw_builds:
             timestamp = TimeHelper(record['buildCompletedTime']).getTimestampFromString()
-            if timestamp < ref_time:
-                break
-            build = BambooBuild(record)
-            self.builds[ac_project][plan].append(build)
-        self.builds[ac_project][plan][::-1]
+            if timestamp >= ref_time:
+                build_count += 1
+                # prep builds dict when there is at least one qualified build:
+                if build_count == 1:
+                    ac_project = self.getAgileCentralProject(record['projectName'])
+                    if ac_project not in self.builds:
+                        self.builds[ac_project] = {}
+                    plan = BambooPlan(record['plan'])
+                    self.builds[ac_project][plan] = []
+
+                build = BambooBuild(record)
+                self.builds[ac_project][plan].append(build)
+        if build_count > 1:
+            self.builds[ac_project][plan][::-1]
+
 
     def getAgileCentralProject(self, bamboo_project_name):
         ac_projects = [ac_proj for project in self.projects
@@ -267,15 +280,26 @@ class BambooBuild:
         """
         self.id        = raw['id']
         self.number    = int(raw['number'])
-        self.result    = raw['state']
-        self.result    = 'INCOMPLETE' if self.result == 'ABORTED' else self.result
+        self.state     = raw['state']
         self.key       = raw['buildResultKey'] #FER-DON-45
         self.link      = raw['link']['href']  # http://localhost:8085/rest/api/latest/result/FER-DON-45
         self.url       = self.link.replace('rest/api/latest/result','browse')        # localhost:8085/browse/FER-DON-45
         self.finished  = raw['finished']
         self.plan      = BambooPlan(raw['plan'])
-        self.completedTime = raw['buildCompletedTime']  # "2017-06-12T13:55:39.712-06:00"
-        self.timestamp = TimeHelper(raw['buildCompletedTime']).getTimestampFromString()
+        self.started_time   = raw['buildStartedTime']
+        self.completed_time = raw['buildCompletedTime']  # "2017-06-12T13:55:39.712-06:00"
+        self.started_timestamp = TimeHelper(self.started_time).getTimestampFromString()
+        self.timestamp         = TimeHelper(self.completed_time).getTimestampFromString()
         self.project   = raw['projectName']
         self.duration = int(raw['buildDuration'])
+
+    def as_tuple_data(self):
+        start_time = datetime.datetime.utcfromtimestamp(self.started_timestamp).strftime('%Y-%m-%dT%H:%M:%SZ')
+        matching_status = Matchmaker('Bamboo').matchStatus(str(self.state))
+        build_data = [('Number', self.number),
+                      ('Status', matching_status),
+                      ('Start', start_time),
+                      ('Duration', self.duration / 1000.0),
+                      ('Uri', self.url)]
+        return build_data
 

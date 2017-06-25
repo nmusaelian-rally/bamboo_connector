@@ -334,14 +334,14 @@ class AgileCentralConnection(BLDConnection):
 
         return response
 
-    def retrieveChangeset(self, sha):
-        query = 'Revision = %s' % sha
-        response = self.agicen.get('Changeset', fetch='ObjectID', query=query,
-                                    workspace=self.workspace_name,project=None)
-        # should we check for errors or warnings?
-        if response.resultCount > 0:
-            return response.next()
-        return None
+    # def retrieveChangeset(self, sha):
+    #     query = 'Revision = %s' % sha
+    #     response = self.agicen.get('Changeset', fetch='ObjectID', query=query,
+    #                                 workspace=self.workspace_name,project=None)
+    #     # should we check for errors or warnings?
+    #     if response.resultCount > 0:
+    #         return response.next()
+    #     return None
 
     def _fillBuildDefinitionCache(self, project):
         response = self.agicen.get('BuildDefinition',
@@ -360,38 +360,40 @@ class AgileCentralConnection(BLDConnection):
            #print("_fillBuildDefinitionCache:  BuildDefinition  Project: %s  JobName: %s" % \
            #        (build_defn.Project.Name, build_defn.Name))
 ##
-            job_name = build_defn.Name
+
+            plan_name = build_defn.Name
             if not project in self.build_def:
                 self.build_def[project] = {}
-            self.build_def[project][job_name] = build_defn
+            self.build_def[project][plan_name] = build_defn
 
 
-    def prepAgileCentralBuildPrerequisites(self, job, target_build, project):
+    def prepAgileCentralBuildPrerequisites(self, plan, target_build, project):
         """
             Given a target_build which has information about a build that has been completed on
              some target build system, accommodate/create the following:
                 SCMRepository    based on the target_build.repo value
                 Changesets       based on the target_build.changeSets
-                BuildDefinition  based on the target_build.job  (which is the job name)
+                BuildDefinition  based on the target_build.plan  (which is the plan name)
              Any or all or none of these things may already be present in AgileCentral, and if
              not create what is necessary.
              Return back the SCMRepository, Changesets, and BuildDefinition.
              These will be a  pyral entity for each or a list of pyral entities in the case of Changesets
         """
         changesets = None
-        if target_build.changeSets:
-            ac_changesets, missing_changesets = self.getCorrespondingChangesets(target_build)
-            # check for ac_changesets, if present take the SCMRepository of the first in the list (very arbitrary!)
-            if ac_changesets:
-                first_changeset = list(ac_changesets)[0]
-                criteria = 'Name = "%s"' % first_changeset.SCMRepository.Name
-                scm_repo = self.agicen.get('SCMRepository', fetch="Name", query=criteria, instance=True)
-            else:
-                scm_repo = self.ensureSCMRepositoryExists(target_build.repository, target_build.vcs)
+        # if target_build.changeSets:
+        #     ac_changesets, missing_changesets = self.getCorrespondingChangesets(target_build)
+        #     # check for ac_changesets, if present take the SCMRepository of the first in the list (very arbitrary!)
+        #     if ac_changesets:
+        #         first_changeset = list(ac_changesets)[0]
+        #         criteria = 'Name = "%s"' % first_changeset.SCMRepository.Name
+        #         scm_repo = self.agicen.get('SCMRepository', fetch="Name", query=criteria, instance=True)
+        #     else:
+        #         scm_repo = self.ensureSCMRepositoryExists(target_build.repository, target_build.vcs)
+        #
+        #     changesets = self.ensureChangesetsExist(scm_repo, project, ac_changesets, missing_changesets)
 
-            changesets = self.ensureChangesetsExist(scm_repo, project, ac_changesets, missing_changesets)
-
-        build_defn = self.ensureBuildDefinitionExists(job.fully_qualified_path(), project, target_build.vcs)
+        #build_defn = self.ensureBuildDefinitionExists(job.fully_qualified_path(), project, target_build.vcs)
+        build_defn = self.ensureBuildDefinitionExists(plan, project)
         return changesets, build_defn
 
 
@@ -527,7 +529,9 @@ class AgileCentralConnection(BLDConnection):
                 query = '(%s OR (%s = "%s"))' % (query, field, v)
             return query
 
-    def ensureBuildDefinitionExists(self, job_path, project, job_uri):
+    #def ensureBuildDefinitionExists(self, job_path, project, job_uri):
+
+    def ensureBuildDefinitionExists(self, plan, project):
         """
             use the self.build_def dict keyed by project at first level, job_path at second level
             to determine if the job_path has a BuildDefinition for it.
@@ -535,41 +539,44 @@ class AgileCentralConnection(BLDConnection):
             Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
         # front-truncate the job_path if the string length of that is > 256 chars
-        if (len(job_path) > 256):
-            job_path = job_path[-256:]
-        if project in self.build_def and job_path in self.build_def[project]:
-            return self.build_def[project][job_path]
+        # if (len(job_path) > 256):
+        #     job_path = job_path[-256:]
+        plan_name = plan.name
+        plan_uri  = plan.url
+
+        if project in self.build_def and plan_name in self.build_def[project]:
+            return self.build_def[project][plan_name]
 
         # do we have the BuildDefinition cache populated?  If not, do it now...
         if project not in self.build_def:  # to avoid build definition duplication
             self.log.debug("Detected build definition cache for the project: {} is empty, populating ...".format(project))
             self._fillBuildDefinitionCache(project)
 
-        # OK, the job_path is not in the BuildDefinition cache
-        # so look in the BuildDefinition cache to see if the job_path exists for the given project
+        # OK, the plan_name is not in the BuildDefinition cache
+        # so look in the BuildDefinition cache to see if the plan_name exists for the given project
         if project in self.build_def:
-            if job_path in self.build_def[project]:
-                return self.build_def[project][job_path]
+            if plan_name in self.build_def[project]:
+                return self.build_def[project][plan_name]
 
         target_project_ref = self._project_cache[project]
 
         bdf_info = {'Workspace' : self.workspace_ref,
                     'Project'   : target_project_ref,
-                    'Name'      : job_path,
-                    'Uri'       : job_uri #something like {base_url}/job/{job} where base_url comes from other spoke conn
+                    'Name'      : plan_name,
+                    'Uri'       : plan_uri
                    }
         try:
-            self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job_path, project))
+            self.log.debug("Creating a BuildDefinition for plan '%s' in Project '%s' ..." % (plan_name, project))
             build_defn = self.agicen.create('BuildDefinition', bdf_info, workspace=self.workspace_name, project=project)
         except Exception as msg:
-            self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job_path, msg))
-            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job_path, msg))
+            self.log.error("Unable to create a BuildDefinition for plan: '%s';  %s" % (plan_name, msg))
+            raise OperationalError("Unable to create a BuildDefinition for plan: '%s';  %s" % (plan_name, msg))
 
         # Put the freshly minted BuildDefinition in the BuildDefinition cache and return it
         if project not in self.build_def:
             self.build_def[project] = {}
 
-        self.build_def[project][job_path] = build_defn
+        self.build_def[project][plan_name] = build_defn
         return build_defn
 
 
@@ -585,7 +592,7 @@ class AgileCentralConnection(BLDConnection):
         # Status  is a string
         # get Start in to iso8601 format
         # Duration is in seconds.milliseconds format
-        # Uri is link to the originating build system job number page
+        # Uri is link to the originating build system
         """
 
         int_work_item['Workspace']       = self.workspace_ref 

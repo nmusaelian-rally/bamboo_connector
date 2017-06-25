@@ -23,10 +23,12 @@ BambooBuildConnector:
                   - Ludovic Cruchot
 
     Service:
-        Preview       : True
+        Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 50
         ShowVCSData   : False
+        SecurityLevel: Cleartext
 
 ...
-
+# _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8 #yeti@rallydev.com:Vistabahn
+#toto:totogithub

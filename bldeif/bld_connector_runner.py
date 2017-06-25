@@ -63,24 +63,34 @@ class BuildConnectorRunner(object):
             problem = ("Insufficient command line args, must be at least a config file name.")
             raise ConfigurationError(problem)
 
+        options = [item for item in args if item.startswith('-')]
+        args = [item for item in args if item not in options]
+
+
         self.default_log_file_name = True
+        self.cleartext_flag = False
         
         # this only allows a logfile spec of --logfile=<some_file_name>
-        # TODO: consider allowing additional syntax  logfile=foo.log or --logfile foo.log
-        log_spec = [arg for arg in args if arg.startswith('--logfile=')]
+        #log_spec = [arg for arg in args if arg.startswith('--logfile=')]
+        log_spec = [opt for opt in options if opt.startswith('--logfile=')]
         if log_spec:
             self.logfile_name = log_spec[0].replace('--logfile=', '')
             self.default_log_file_name = False
-            for spec in log_spec:
-                args = [arg for arg in args if arg != spec]
-        
+            # for spec in log_spec:
+            #     args = [arg for arg in args if arg != spec]
+
+        self.encode_credentials = True # why we set encode_credentials to True?
+        clear_text_creds = [opt for opt in options if opt in ['-c', '--c'] or opt.startswith('--cleartext')]
+        if clear_text_creds:
+            self.cleartext_flag = True
         self.config_file_names = args
+
         if self.default_log_file_name:  # set it to first config file minus any '_config.yml' portion
             self.first_config = self.config_file_names[0]
-            self.logfile_name = "log/%s.log" % self.first_config.replace('.yml', '').replace('_config', '')
+            self.logfile_name = "logs/%s.log" % self.first_config.replace('.yml', '').replace('_config', '')
             try:
-                if not os.path.exists('log'):
-                    os.makedirs('log')
+                if not os.path.exists('logs'):
+                    os.makedirs('logs')
             except Exception as msg:
                 sys.stderr.write("Unable to locate or create the log sub-directory, %s\n" % msg)
                 raise Exception
@@ -135,7 +145,7 @@ class BuildConnectorRunner(object):
                 config_file_path = self.find_config_file(config_file)
                 if not config_file_path:
                     raise ConfigurationError("No config file for '%s' found in the config subdir" % config_file)
-                lf_name = "log/%s.log" % config_file.replace('.yml', '').replace('_config', '')
+                lf_name = "logs/%s.log" % config_file.replace('.yml', '').replace('_config', '')
                 self.log = ActivityLogger(lf_name)
                 logAllExceptions(True, self.log)
                 self._operateService(config_file_path)
@@ -174,20 +184,20 @@ class BuildConnectorRunner(object):
         return bsn
 
     def find_config_file(self, config_name):
-        relative_path = 'config/%s' % config_name
+        relative_path = 'configs/%s' % config_name
         if os.path.exists(relative_path):
             return relative_path
         else:
             return None
         # valid_targets = ['%s' % config_name, '%s.yml' % config_name]
-        # hits = [entry for entry in glob.glob('config/*') if config_name in entry]
+        # hits = [entry for entry in glob.glob('configs/*') if config_name in entry]
         # if hits:
         #     return hits[0]
         # else:
         #     return None
 
     def _operateService(self, config_file_path):
-        config_name = config_file_path.replace('config/', '')
+        config_name = config_file_path.replace('configs/', '')
         started = finished = elapsed = None
         self.connector = None
         self.log.info("processing to commence using content from %s" % config_file_path)
@@ -195,7 +205,7 @@ class BuildConnectorRunner(object):
         last_conf_mod = time.strftime(STD_TS_FMT, time.gmtime(os.path.getmtime(config_file_path)))
         conf_file_size = os.path.getsize(config_file_path)
         self.log.info("%s last modified %s,  size: %d chars" % (config_file_path, last_conf_mod, conf_file_size))
-        config = self.getConfiguration(config_file_path)
+        config = self.getConfiguration(config_name)
 
         this_run = time.time()     # be optimistic that the reflectBuildsInAgileCentral service will succeed
         now_zulu = time.strftime(STD_TS_FMT, time.gmtime(this_run)) # zulu <-- universal coordinated time <-- UTC
@@ -206,7 +216,7 @@ class BuildConnectorRunner(object):
         else:
             last_run = time.time() - (THREE_DAYS)
         last_run_zulu = time.strftime(STD_TS_FMT, time.gmtime(last_run))
-        #self.log.info("Last Run %s --- Now %s" % (last_run_zulu, now_zulu))
+
         self.log.info("Time File value %s --- Now %s" % (last_run_zulu, now_zulu))
 
         self.connector = BLDConnector(config, self.log)
@@ -231,7 +241,7 @@ class BuildConnectorRunner(object):
             self.log.info('No builds were added during this run, so the time.file NOT updated.')
             return
 
-        # we've added builds successfully, so update the Time File (config/<config>_time.file)
+        # we've added builds successfully, so update the Time File (configs/<config>_time.file)
         try:
             earliest_build_start = min(build_list[-1].Start for job_name, build_list in builds.items())
             time_file_timestamp = earliest_build_start.replace('T', ' ')[:19]
@@ -248,7 +258,7 @@ class BuildConnectorRunner(object):
                 time_file_name =  "%s_time.file" % config_file
         else:
             time_file_name = 'time.file'
-        time_file_path = 'log/%s' % time_file_name
+        time_file_path = 'logs/%s' % time_file_name
         return time_file_path
 
 
@@ -277,7 +287,7 @@ class BuildConnectorRunner(object):
 
     def getConfiguration(self, config_file):
         try:
-            config = Konfabulator(config_file, self.log)
+            config = Konfabulator(config_file, self.log, self.cleartext_flag)
         except NonFatalConfigurationError as msg:
             pass # info for this will have already been logged or blurted
         except Exception as msg:

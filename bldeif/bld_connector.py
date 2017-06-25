@@ -206,49 +206,63 @@ class BLDConnector:
         recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
-        self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
-        if self.svc_conf.get('ShowVCSData', False):
-            self.dumpChangesetInfo(unrecorded_builds)
+        self.log.info("no more than %d builds per plan will be recorded on this run" % self.max_builds)
+        #if self.svc_conf.get('ShowVCSData', False):
+            #self.dumpChangesetInfo(unrecorded_builds)
 
         recorded_builds = OrderedDict()
         builds_posted = {}
         # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
         unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))
         self.log.debug("About to process %d unrecorded builds" % len(unrecorded_builds))
-        for job, build, project, view in unrecorded_builds:
-            if build.result == 'None':
-                self.log.warn("%s #%s job/build was not processed because is still running" % (job, build.number))
+        # for job, build, project, view in unrecorded_builds:
+        #     if build.result == 'None':
+        #         self.log.warn("%s #%s job/build was not processed because is still running" % (job, build.number))
+        #         continue
+        #     #self.log.debug("current job: %s  build: %s" % (job, build))
+        #     if not job in builds_posted:
+        #         builds_posted[job] = 0
+        #     if builds_posted[job] >= self.max_builds:
+        #         continue
+        #     if preview_mode:
+        #         continue
+        for plan, build, project in unrecorded_builds:
+            if not build.finished:
+                self.log.warn("%s #%s plan/build was not processed because is still running" % (plan, build.number))
                 continue
             #self.log.debug("current job: %s  build: %s" % (job, build))
-            if not job in builds_posted:
-                builds_posted[job] = 0
-            if builds_posted[job] >= self.max_builds:
+            if not plan in builds_posted:
+                builds_posted[plan] = 0
+            if builds_posted[plan] >= self.max_builds:
                 continue
             if preview_mode:
                 continue
+        for plan, build, ac_project in unrecorded_builds:
 
             try:
-                changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(job, build, project)
+                #changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(job, build, project)
+                changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(plan, build, ac_project)
             except Exception as msg:
                 self.log.error('OperationalException prepACBuildPrerequisites - %s' % msg)
                 continue
 
             try:
-                agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, job)
+                #agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, job)
+                agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, plan)
             except Exception as msg:
                 self.log.error('OperationalException postingACBuild - %s' % msg)
                 continue
 
             if agicen_build and status == 'posted':
-                builds_posted[job] += 1
-                if job not in recorded_builds:
-                    recorded_builds[job] = []
-                recorded_builds[job].append(agicen_build)
+                builds_posted[plan] += 1
+                if plan not in recorded_builds:
+                    recorded_builds[plan] = []
+                recorded_builds[plan].append(agicen_build)
             status = True
 
         return status, recorded_builds
 
-    def postBuildToAgileCentral(self, build_defn, build, changesets, job):
+    def postBuildToAgileCentral(self, build_defn, build, changesets, plan):
         desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
         # add that "collection" as the Build's Changesets collection                                                                 bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp / 1000.0))
         # self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
@@ -259,7 +273,7 @@ class BLDConnector:
             info['Changesets'] = changesets
         existing_agicen_build = self.agicen_conn.buildExists(build_defn, build.number)
         if existing_agicen_build:
-            self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
+            self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, plan))
             return existing_agicen_build, 'skipped'
         agicen_build = self.agicen_conn.createBuild(info)
         return agicen_build, 'posted'
@@ -280,17 +294,17 @@ class BLDConnector:
 
     def _showBuildInformation(self, agicen_builds, bld_builds):
         ##
-        for project, job_builds in agicen_builds.items():
+        for project, plan_builds in agicen_builds.items():
             print("Agile Central project: %s" % project)
-            for job, builds in job_builds.items():
-                print("    %-36.36s : %3d build items" % (job, len(builds)))
+            for plan, builds in plan_builds.items():
+                print("    %-36.36s : %3d build items" % (plan, len(builds)))
         print("")
 
         ##
-        for view, job_builds in bld_builds.items():
+        for view, plan_builds in bld_builds.items():
             print("Jenkins View: %s" % view)
-            for job, builds in job_builds.items():
-                print("    %-36.36s : %3d build items" % (job, len(builds)))
+            for plan, builds in plan_builds.items():
+                print("    %-36.36s : %3d build items" % (plan, len(builds)))
         print("")
         ##
 
@@ -309,43 +323,58 @@ class BLDConnector:
         reflected_builds   = []
         unrecorded_builds  = []
 
-        for view_and_project, jobs in bld_builds.items():
-            view, project = view_and_project.split('::', 1)
-            for job, builds in jobs.items():
+        # for view_and_project, jobs in bld_builds.items():
+        #     view, project = view_and_project.split('::', 1)
+        #     for job, builds in jobs.items():
+        #         for build in builds:
+        #             # look first for a matching project key in agicen_builds
+        #             if project in agicen_builds:
+        #                 job_builds = agicen_builds[project]
+        #                 # now look for a matching job in job_builds
+        #                 job_fqp = job.fully_qualified_path()
+        #                 if job_fqp in job_builds:
+        #                     ac_build_nums = [int(bld.Number) for bld in job_builds[job_fqp]]
+        #                     if build.number in ac_build_nums:
+        #                         reflected_builds.append((job, build, project, view))
+        #                         continue
+        #             unrecorded_builds.append((job, build, project, view))
+
+        for ac_project, bld_data in bld_builds.items():
+            for plan, builds in bld_data.items():
                 for build in builds:
                     # look first for a matching project key in agicen_builds
-                    if project in agicen_builds:
-                        job_builds = agicen_builds[project]
+                    if ac_project in agicen_builds:
+                        plan_builds = agicen_builds[ac_project]
                         # now look for a matching job in job_builds
-                        job_fqp = job.fully_qualified_path()
-                        if job_fqp in job_builds:
-                            ac_build_nums = [int(bld.Number) for bld in job_builds[job_fqp]]
+                        plan_name = plan.name
+                        if plan_name in plan_builds:
+                            ac_build_nums = [int(bld.Number) for bld in plan_builds[plan_name]] #bld is a pyral build
                             if build.number in ac_build_nums:
-                                reflected_builds.append((job, build, project, view))
+                                reflected_builds.append((plan, build, ac_project))
                                 continue
-                    unrecorded_builds.append((job, build, project, view))
+                    unrecorded_builds.append((plan, build, ac_project))
                     
         return unrecorded_builds
 
 
-    def dumpChangesetInfo(self, builds):
-        for job, build, project, view in builds:
-            if not build.changeSets:
-                continue
-            self.log.debug(build)
-            for cs in build.changeSets:
-                self.log.debug(str(cs))
-
-
-    def detectCommitsForJenkinsBuild(self, build):
-        shas = set([cs.id for cs in build.changeSets])
-
-        bacs = []
-        for sha in shas:
-            ac_changeset = self.agicen_conn.retrieveChangeset(sha)
-            if ac_changeset:
-                bacs.append(ac_changeset)
-
-        return bacs
+    # def dumpChangesetInfo(self, builds):
+    #     for job, build, project, view in builds:
+    #         if not build.changeSets:
+    #             continue
+    #         self.log.debug(build)
+    #         for cs in build.changeSets:
+    #             self.log.debug(str(cs))
+    #
+    #
+    # def detectCommitsForJenkinsBuild(self, build):
+    #     shas = set([cs.id for cs in build.changeSets])
+    #
+    #     bacs = []
+    #     for sha in shas:
+    #         ac_changeset = self.agicen_conn.retrieveChangeset(sha)
+    #         if ac_changeset:
+    #             bacs.append(ac_changeset)
+    #
+    #     return bacs
 
 ####################################################################################
