@@ -104,12 +104,14 @@ class BuildConnectorRunner(object):
 
     def proclaim_existence(self, build_system_name):
         proc = ProcTable.targetProcess(os.getpid())
-        now = time.strftime(STD_TS_FMT, time.gmtime(time.time()))
+        secs_now      = time.time()
+        struct_now    = time.gmtime(secs_now)
+        zulu_str_now  = time.strftime(STD_TS_FMT, struct_now)
         cmd_elements = proc.cmdline.split()
         executable = cmd_elements[0]
         cmd_elements[0] = os.path.basename(executable)
         proc.cmdline = " ".join(cmd_elements)
-        self.log.write(EXISTENCE_PROCLAMATION % (build_system_name, __version__, now, proc.pid, os.getcwd(), proc.cmdline))
+        self.log.write(EXISTENCE_PROCLAMATION % (build_system_name, __version__, zulu_str_now, proc.pid, os.getcwd(), proc.cmdline))
 
     def acquireLock(self):
         """
@@ -207,25 +209,28 @@ class BuildConnectorRunner(object):
         self.log.info("%s last modified %s,  size: %d chars" % (config_file_path, last_conf_mod, conf_file_size))
         config = self.getConfiguration(config_name)
 
-        this_run = time.time()     # be optimistic that the reflectBuildsInAgileCentral service will succeed
-        now_zulu = time.strftime(STD_TS_FMT, time.gmtime(this_run)) # zulu <-- universal coordinated time <-- UTC
+        secs_this_run   = time.time()     # be optimistic that the reflectBuildsInAgileCentral service will succeed
+        struct_this_run = time.gmtime(secs_this_run)
+        zulu_str_this_run    = time.strftime(STD_TS_FMT, struct_this_run) # zulu <-- universal coordinated time <-- UTC
 
         self.time_file = TimeFile(self.buildTimeFileName(config_name), self.log)
         if self.time_file.exists():
-            last_run = self.time_file.read() # the last_run is in Zulu time (UTC) as an epoch seconds value
+            secs_last_run = self.time_file.read() # the last_run is in Zulu time (UTC) as an epoch seconds value
         else:
-            last_run = time.time() - (THREE_DAYS)
-        last_run_zulu = time.strftime(STD_TS_FMT, time.gmtime(last_run))
+            secs_last_run = time.time() - (THREE_DAYS)
 
-        self.log.info("Time File value %s --- Now %s" % (last_run_zulu, now_zulu))
+        struct_last_run   = time.gmtime(secs_last_run)
+        zulu_str_last_run = time.strftime(STD_TS_FMT, struct_last_run)
+
+        self.log.info("Time File value %s --- Now %s" % (zulu_str_last_run, zulu_str_this_run))
 
         self.connector = BLDConnector(config, self.log)
         self.log.debug("Got a BLDConnector instance, calling the BLDConnector.run ...")
-        status, builds = self.connector.run(last_run, self.extension)
+        status, builds = self.connector.run(secs_last_run, self.extension)
         # builds is an OrderedDict instance, keyed by job name, value is a list of Build instances
 
         finished = time.time()
-        elapsed = int(round(finished - this_run))
+        elapsed = int(round(finished - secs_this_run))
         self.logServiceStatistics(config_name, builds, elapsed)
 
         if self.preview:

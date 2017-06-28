@@ -4,6 +4,7 @@ import urllib
 import socket
 import re
 import time
+import calendar
 
 import requests
 from collections import Counter
@@ -127,7 +128,7 @@ class BambooConnection(BLDConnection):
         self.bamboo = None
 
     def getRecentBuilds(self, ref_time):
-        ref_time = time.mktime(ref_time)
+        ref_time = calendar.timegm(ref_time)
         recent_builds_count = 0
         all_projects = self.getProjects()
 

@@ -153,14 +153,14 @@ class BLDConnector:
         return True
 
 
-    def run(self, last_run, extension):
+    def run(self, secs_last_run, extension):
         """
             The real beef is in the call to reflectBuildsInAgileCentral.
             The facility for extensions is not yet implemented for BLD connectors,
             so the pre and post batch calls are currently no-ops.
         """
         self.preBatch(extension)
-        status, builds = self.reflectBuildsInAgileCentral(last_run)
+        status, builds = self.reflectBuildsInAgileCentral(secs_last_run)
         self.postBatch(extension, status, builds)
         return status, builds
 
@@ -181,7 +181,7 @@ class BLDConnector:
             postba.service(status, builds)
 
 
-    def reflectBuildsInAgileCentral(self, last_run):
+    def reflectBuildsInAgileCentral(self, secs_last_run):
         """
             The last run time is passed to Connection objects in UTC;
             they are responsible for converting if necessary. 
@@ -201,7 +201,7 @@ class BLDConnector:
             self.log.info('***** Preview Mode *****   (no Builds will be created in Agile Central)')
 
 
-        agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
+        agicen_ref_time, bld_ref_time = self.getRefTimes(secs_last_run)
         recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, self.target_projects)
         recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
@@ -278,18 +278,18 @@ class BLDConnector:
         agicen_build = self.agicen_conn.createBuild(info)
         return agicen_build, 'posted'
 
-    def getRefTimes(self, last_run):
+    def getRefTimes(self, secs_last_run):
         """
             last_run is provided as an epoch seconds value. 
             Return a two-tuple of the reference time to be used for obtaining the 
             recent Builds in AgileCentral and the reference time to be used for 
             obtaining the recent builds in the target BLD system.
         """
-        agicen_lookback = self.agicen_conn.lookback
-        bld_lookback    = self.bld_conn.lookback 
-        agicen_ref_time = time.gmtime(last_run - agicen_lookback)
-        bld_ref_time    = time.gmtime(last_run - bld_lookback)
-        return agicen_ref_time, bld_ref_time
+        secs_agicen_lookback = self.agicen_conn.lookback
+        secs_bld_lookback    = self.bld_conn.lookback
+        struct_agicen_ref_time   = time.gmtime(secs_last_run - secs_agicen_lookback)
+        struct_bld_ref_time       = time.gmtime(secs_last_run - secs_bld_lookback)
+        return struct_agicen_ref_time, struct_bld_ref_time
 
 
     def _showBuildInformation(self, agicen_builds, bld_builds):

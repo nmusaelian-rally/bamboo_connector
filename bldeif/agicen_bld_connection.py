@@ -273,15 +273,15 @@ class AgileCentralConnection(BLDConnection):
             self.integration_other_version = header_info['other_version']
 
 
-    def getRecentBuilds(self, ref_time, projects):
+    def getRecentBuilds(self, struct_ref_time, projects):
         """
             Obtain all Builds created in Agile Central at or after the ref_time parameter
             (which is a struct_time object)
              in Python, ref_time will be a struct_time item:
                (tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst)
         """
-        ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", ref_time)
-        ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  ref_time)
+        ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", struct_ref_time)
+        ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  struct_ref_time)
         self.log.info("Detecting recently added Agile Central Builds")
         selectors = ['CreationDate >= %s' % ref_time_iso]
         log_msg = '   recent Builds query: %s' %  ' and '.join(selectors)
