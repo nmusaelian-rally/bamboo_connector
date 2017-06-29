@@ -135,59 +135,39 @@ def test_reflect_builds():
         log_content = f.readlines()
 
     line1 = "Created Build: %s" % plan_name
-
     match1 = [line for line in log_content if "{}".format(line1) in line][0]
-
     assert re.search(r'%s' % line1, match1)
 
 
-# def test_dont_duplicate_builds():
-#     job_name = 'truculent elk medallions'
-#     assert util.delete_ac_builds(job_name) == []
-#     config_file = 'truculent.yml'
-#     ymlfile = open("config/{}".format(config_file), 'r')
-#     conf = yaml.load(ymlfile)
-#     project = conf['JenkinsBuildConnector']['Jenkins']['Jobs'][0]['AgileCentral_Project']
-#     create_time_file(config_file, minutes=2)
-#     args = [config_file]
-#     runner = BuildConnectorRunner(args)
-#     assert runner.first_config == config_file
-#     last_run_zulu = '2016-12-01 00:00:00 Z'
-#     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
-#     with open("log/{}".format(time_file_name), 'w') as tf:
-#         tf.write(last_run_zulu)
-#
-#     runner.run()
-#     jenk_conn = runner.connector.bld_conn
-#     all_naked_jobs = jenk_conn.inventory.jobs
-#     targeted = [job for job in all_naked_jobs if job.name == job_name]
-#     target_job = targeted[0]
-#     build_defs = util.get_build_definition(target_job.fully_qualified_path(), project=project)
-#     assert len(build_defs) == 1
-#     assert build_defs[0].Project.Name == project
-#
-#     builds = util.get_ac_builds(build_defs[0], project=project)
-#     #assert len(builds) == 10
-#     assert [build for build in builds if build.Number in ['8', '9', '10']]
-#     assert [build for build in builds if build.Number == '8' and build.Status == 'SUCCESS']
-#     assert [build for build in builds if build.Number == '9' and build.Status == 'FAILURE']
-#
-#     last_run_zulu = '2016-10-31 00:00:00 Z'
-#     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
-#     with open("log/{}".format(time_file_name), 'w') as tf:
-#         tf.write(last_run_zulu)
-#
-#     runner.run()
-#     build_defs = util.get_build_definition(target_job.fully_qualified_path(), project=project)
-#     assert len(build_defs) == 1
-#
-#     builds = util.get_ac_builds(build_defs[0], project=project)
-#     assert len(builds) == 10
-#     assert len([build for build in builds if build.Number == '1']) == 1
-#     assert len([build for build in builds if build.Number in ['8', '9', '10']]) == 3
-#     assert [build for build in builds if build.Number == '5' and build.Status == 'SUCCESS']
-#     assert [build for build in builds if build.Number == '1' and build.Status == 'FAILURE']
-#
+def test_dont_duplicate_builds():
+    config_file = "camillo.yml"
+    bamboo_helper = BambooTestHelper(config_file)
+
+    project_key = 'FER'
+    plan_key = 'RET'
+    plan_name = 'ReturnOfDonComillio'
+    response = bamboo_helper.build(project_key, plan_key)
+
+    trash_log(config_file.replace('.yml', ''))
+
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+
+    runner.run()
+
+    log = "logs/{}.log".format(config_file.replace('.yml', ''))
+    assert runner.logfile_name == log
+
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    str = "Created Build: %s" % plan_name
+    line1 = [line for line in log_content if "{}".format(str) in line][-1]
+
+    assert re.search(r'%s' % str, line1)
+    build_number = re.search(r'\s*\d+', line1.split(' #')[1]).string.split()[0]
+
+
 #
 # def test_identify_unrecorded_builds():
 #     config_path = 'config/dupes.yml'
