@@ -13,6 +13,7 @@ from bldeif.bld_connector import BLDConnector
 from bldeif.agicen_bld_connection import AgileCentralConnection
 from bldeif.bld_connector_runner import BuildConnectorRunner
 from bldeif.utils.time_helper import TimeHelper
+from bamboo_test_helper import BambooTestHelper
 
 time_helper = TimeHelper()
 TIMEFILE_FORMAT = '%Y-%m-%d %H:%M:%S Z'
@@ -111,46 +112,35 @@ def test_times_written_to_log():
     assert re.search(r'%s' % line2, match2)
 
 
-        # def test_reflect_builds():
-#     config_file = 'wombat.yml'
-#     folder = "immovable wombats"
-#     my_job = "Top"
-#
-#     ymlfile = open("config/{}".format(config_file), 'r')
-#     data = yaml.load(ymlfile)
-#     jenkins = data['JenkinsBuildConnector']['Jenkins']
-#     username  = jenkins['Username']
-#     api_token = jenkins['API_Token']
-#     protocol  = jenkins['Protocol']
-#     server    = jenkins['Server']
-#     port      = jenkins['Port']
-#     headers = {'Content-Type': 'application/json'}
-#
-#     jenkins_base_url = "{}://{}:{}".format(protocol, server, port)
-#     url = "{}/job/{}/job/{}/build".format(jenkins_base_url, folder, my_job)
-#     r = requests.post(url, auth=(username, api_token), headers=headers)
-#     assert r.status_code in [200, 201]
-#
-#     create_time_file(config_file, minutes=2)
-#     args = [config_file]
-#     runner = BuildConnectorRunner(args)
-#     assert runner.first_config == config_file
-#
-#     runner.run()
-#
-#     assert config_file in runner.config_file_names
-#     assert 'AgileCentral' in runner.connector.config.topLevels()
-#     assert 'Static' in runner.connector.target_projects
-#     log = "log/{}.log".format(config_file.replace('.yml', ''))
-#     assert runner.logfile_name == log
-#     with open(log, 'r') as f:
-#         log_content = f.readlines()
-#     job_build_signature =  "Created Build: tiema03-u183073.ca.com:8080/job/immovable wombats/job/Top"
-#     #job_build_signature = "Created Build: {}/job/{}/job/{}".format(jenkins_base_url, folder, my_job)
-#     job_url_lines = [line for line in log_content if job_build_signature in line]
-#     assert job_url_lines
-#
-#
+def test_reflect_builds():
+    config_file = "camillo.yml"
+    bamboo_helper = BambooTestHelper(config_file)
+
+    project_key = 'FER'
+    plan_key    = 'RET'
+    plan_name   = 'ReturnOfDonComillio'
+    response = bamboo_helper.build(project_key, plan_key)
+
+    trash_log(config_file.replace('.yml', ''))
+
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+
+    runner.run()
+
+    log = "logs/{}.log".format(config_file.replace('.yml', ''))
+    assert runner.logfile_name == log
+
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    line1 = "Created Build: %s" % plan_name
+
+    match1 = [line for line in log_content if "{}".format(line1) in line][0]
+
+    assert re.search(r'%s' % line1, match1)
+
+
 # def test_dont_duplicate_builds():
 #     job_name = 'truculent elk medallions'
 #     assert util.delete_ac_builds(job_name) == []
