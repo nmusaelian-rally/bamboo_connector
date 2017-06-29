@@ -213,8 +213,6 @@ class BuildConnectorRunner(object):
         config = self.getConfiguration(config_name)
 
         secs_this_run   = time.time()     # be optimistic that the reflectBuildsInAgileCentral service will succeed
-        #struct_this_run = time.gmtime(secs_this_run)
-        #zulu_str_this_run    = time.strftime(STD_TS_FMT, struct_this_run) # zulu <-- universal coordinated time <-- UTC
         zulu_str_this_run = time_helper.stringFromSeconds(secs_this_run, STD_TS_FMT)
 
         self.time_file = TimeFile(self.buildTimeFileName(config_name), self.log)
@@ -223,8 +221,6 @@ class BuildConnectorRunner(object):
         else:
             secs_last_run = time.time() - (THREE_DAYS)
 
-        #struct_last_run   = time.gmtime(secs_last_run)
-        #zulu_str_last_run = time.strftime(STD_TS_FMT, struct_last_run)
         zulu_str_last_run = time_helper.stringFromSeconds(secs_last_run, STD_TS_FMT)
 
         self.log.info("Time File value %s --- Now %s" % (zulu_str_last_run, zulu_str_this_run))

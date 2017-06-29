@@ -203,7 +203,6 @@ class BambooConnection(BLDConnection):
         # self.builds[ac_project][plan] = []
 
         for record in raw_builds:
-            #timestamp = TimeHelper(record['buildCompletedTime']).getTimestampFromString()
             timestamp = time_helper.secondsFromString(record['buildCompletedTime'])
             if timestamp >= ref_time:
                 build_count += 1
@@ -300,7 +299,6 @@ class BambooBuild:
         self.duration = int(raw['buildDuration'])
 
     def as_tuple_data(self):
-        #start_time = datetime.datetime.utcfromtimestamp(self.started_timestamp).strftime('%Y-%m-%dT%H:%M:%SZ')
         iso_str_start = time_helper.stringFromSeconds(self.started_timestamp, '%Y-%m-%dT%H:%M:%SZ')
         matching_status = Matchmaker('Bamboo').matchStatus(str(self.state))
         build_data = [('Number', self.number),
