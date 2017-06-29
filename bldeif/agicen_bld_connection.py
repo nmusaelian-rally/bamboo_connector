@@ -7,8 +7,11 @@ import bldeif.utils.ac_prefixes  as utils
 
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 from bldeif.connection import BLDConnection
+from bldeif.utils.time_helper import TimeHelper
 
 from pyral import Rally, rallySettings, RallyRESTAPIError
+
+time_helper = TimeHelper()
 
 ############################################################################################
 
@@ -280,8 +283,11 @@ class AgileCentralConnection(BLDConnection):
              in Python, ref_time will be a struct_time item:
                (tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst)
         """
-        ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", struct_ref_time)
-        ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  struct_ref_time)
+        #ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", struct_ref_time)
+        #ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  struct_ref_time)
+
+        ref_time_readable = time_helper.stringFromStruct(struct_ref_time, "%Y-%m-%d %H:%M:%S Z")
+        ref_time_iso      = time_helper.stringFromStruct(struct_ref_time, "%Y-%m-%dT%H:%M:%SZ")
         self.log.info("Detecting recently added Agile Central Builds")
         selectors = ['CreationDate >= %s' % ref_time_iso]
         log_msg = '   recent Builds query: %s' %  ' and '.join(selectors)

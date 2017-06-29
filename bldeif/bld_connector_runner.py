@@ -22,6 +22,7 @@ from bldeif.bld_connector    import BLDConnector
 #from bldeif.utils.auxloader  import ExtensionLoader
 from bldeif.utils.eif_exception import ConfigurationError, NonFatalConfigurationError
 from bldeif.utils.eif_exception import OperationalError, logAllExceptions
+from bldeif.utils.time_helper import TimeHelper
 
 ############################################################################################################
 
@@ -42,6 +43,8 @@ LOCK_FILE  = 'LOCK.tmp'
 STD_TS_FMT = '%Y-%m-%d %H:%M:%S Z'
 
 THREE_DAYS = 3 * 86400
+
+time_helper = TimeHelper()
 
 ############################################################################################################
 
@@ -210,8 +213,9 @@ class BuildConnectorRunner(object):
         config = self.getConfiguration(config_name)
 
         secs_this_run   = time.time()     # be optimistic that the reflectBuildsInAgileCentral service will succeed
-        struct_this_run = time.gmtime(secs_this_run)
-        zulu_str_this_run    = time.strftime(STD_TS_FMT, struct_this_run) # zulu <-- universal coordinated time <-- UTC
+        #struct_this_run = time.gmtime(secs_this_run)
+        #zulu_str_this_run    = time.strftime(STD_TS_FMT, struct_this_run) # zulu <-- universal coordinated time <-- UTC
+        zulu_str_this_run = time_helper.stringFromSeconds(secs_this_run, STD_TS_FMT)
 
         self.time_file = TimeFile(self.buildTimeFileName(config_name), self.log)
         if self.time_file.exists():
@@ -219,8 +223,9 @@ class BuildConnectorRunner(object):
         else:
             secs_last_run = time.time() - (THREE_DAYS)
 
-        struct_last_run   = time.gmtime(secs_last_run)
-        zulu_str_last_run = time.strftime(STD_TS_FMT, struct_last_run)
+        #struct_last_run   = time.gmtime(secs_last_run)
+        #zulu_str_last_run = time.strftime(STD_TS_FMT, struct_last_run)
+        zulu_str_last_run = time_helper.stringFromSeconds(secs_last_run, STD_TS_FMT)
 
         self.log.info("Time File value %s --- Now %s" % (zulu_str_last_run, zulu_str_this_run))
 
