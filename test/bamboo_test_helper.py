@@ -34,10 +34,10 @@ class BambooTestHelper():
         bamboo = self.conf['BambooBuildConnector']['Bamboo']
         base_url = self.construct_bamboo_base_url()
         endpoint = "queue/%s-%s" %(project,plan)
-        headers = {'Content-Type':'application/xml'}
-        url = "%s/%s?os_authType=basic" % (base_url, endpoint)
-        r = requests.post(url, auth=(bamboo['Username'], bamboo['Password']), headers=headers)
-        return r
+        #headers = {'Content-Type':'application/json'}
+        url = "%s/%s.json?os_authType=basic" % (base_url, endpoint)
+        r = requests.post(url, auth=(bamboo['Username'], bamboo['Password']))#, headers=headers) #content-type header has no effect, added .json
+        return r.json()
 
 
     def get_latest_bulid(self, project, plan):

@@ -217,7 +217,7 @@ class BambooConnection(BLDConnection):
                 build = BambooBuild(record)
                 self.builds[ac_project][plan].append(build)
         if build_count > 1:
-            self.builds[ac_project][plan][::-1]
+            self.builds[ac_project][plan] = self.builds[ac_project][plan][::-1]
 
 
     def getAgileCentralProject(self, bamboo_project_name):

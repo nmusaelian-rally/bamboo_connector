@@ -4,7 +4,7 @@ import time
 from pyral import Rally, rallyWorkset, RallyRESTAPIError
 
 APIKEY = '_2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8'
-class RallyHelper():
+class RallyTestHelper():
     def __init__(self, workspace, project):
         self.workspace = workspace
         self.project   = project
@@ -172,7 +172,7 @@ class RallyHelper():
             raise RallyRESTAPIError(msg)
         return changeset
 
-ac_helper  = RallyHelper(workspace="Alligators BLD Unigrations", project="Jenkins")
+ac_helper  = RallyTestHelper(workspace="Alligators BLD Unigrations", project="Jenkins")
 
 ########################## tests ###########################################
 def test_find_scm_repo():
