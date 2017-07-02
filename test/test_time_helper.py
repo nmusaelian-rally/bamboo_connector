@@ -18,7 +18,6 @@ def test_structFromSeconds():
     print(local_struct)
     tz = time.tzname
     print (tz)
-    print (offset) # -6
     assert local_struct.tm_hour - utc_struct.tm_hour == offset
 
     daylight = time.daylight # 1
@@ -30,6 +29,17 @@ def test_structFromSeconds():
     elif offset == -7:
         assert helper.getTimeZone() == 'MST'
         assert daylight != 1
+
+def test_stardard_vs_daylight_saving_time():
+    iso_str_feb    = "2017-02-01T12:00:00Z"
+    secs_feb       = helper.secondsFromString(iso_str_feb)
+    utc_struct_feb = helper.structFromSeconds(secs_feb)
+
+    iso_str_may    = "2017-05-01T12:00:00Z"
+    secs_may       = helper.secondsFromString(iso_str_may)
+    utc_struct_may = helper.structFromSeconds(secs_may)
+
+    assert utc_struct_feb.tm_hour - utc_struct_may.tm_hour == 1
 
 
 def test_secondsFromStruct():
@@ -85,3 +95,4 @@ def test_pop_offset_colon():
     bamboo_str = '2017-06-12T13:55:39.712-06:00'
     str1 = helper.popLastColon(bamboo_str)
     assert str1 == '2017-06-12T13:55:39.712-0600'
+

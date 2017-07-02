@@ -182,9 +182,21 @@ class BambooConnection(BLDConnection):
                         }
                     ]
          Is it possible to get revision's commit message and timestamp?
+         Yes, but only by hitting a separate endpoint per build result, e.g.
+         http://localhost:8085/rest/api/latest/result/FER-DON/74.json?expand=changes.change.files,vcsRevisions
+
+
+         Paging:
+
+         endpoint = 'result/%s.json?expand=results[0:200].result.vcsRevisions' % key
+         results[0:max] returns 25 results (one page) per plan. If there are more than 25 results per plan paging
+         will be necessary. E.g. if one plan has 70 results, another 80, third 10, only 60 (25+25+10) will be returned
+         instead of paging, use max-results=1000000 with arbitrary large number
+         E.g. the endpoint below will return all 160 (80+70+10) results
+         endpoint = 'result/%s.json?expand=results.result.vcsRevisions&max-results=1000000' % key
         """
         raw_builds = []
-        endpoint = 'result/%s.json?expand=results[0:100].result.vcsRevisions' % key
+        endpoint = 'result/%s.json?expand=results.result.vcsRevisions&max-results=1000000' % key
         headers = {'Content-Type': 'application/json'}
         url = "%s/%s" % (self.base_url, endpoint)
         response = requests.get(url, auth=self.creds, proxies=self.http_proxy, headers=headers)
