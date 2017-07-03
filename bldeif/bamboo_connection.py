@@ -167,33 +167,62 @@ class BambooConnection(BLDConnection):
 
     def getBuildsPerPlan(self, key, ref_time):
         """
-        curl --user toto:totogithub -g http://localhost:8085/rest/api/latest/result/FER-DON.json?expand=results[0:5].result | python -m json.tool
 
-        to get more details on vcsRevisions:
+        Paging:
 
-        curl --user toto:totogithub -g http://localhost:8085/rest/api/latest/result/FER-DON.json?expand=results[0:5].result.vcsRevisions | python -m json.tool
-
-        vcs data seeps to be limited to:
-            "vcsRevision": [
-                        {
-                            "repositoryId": 360450,
-                            "repositoryName": "bamboo-camillo",
-                            "vcsRevisionKey": "561b474ef508710944574f4e33ea9f77a2abf69b"
-                        }
-                    ]
-         Is it possible to get revision's commit message and timestamp?
-         Yes, but only by hitting a separate endpoint per build result, e.g.
-         http://localhost:8085/rest/api/latest/result/FER-DON/74.json?expand=changes.change.files,vcsRevisions
-
-
-         Paging:
-
-         endpoint = 'result/%s.json?expand=results[0:200].result.vcsRevisions' % key
+         endpoint = 'result/%s.json?expand=results[0:200].result' % key
          results[0:max] returns 25 results (one page) per plan. If there are more than 25 results per plan paging
          will be necessary. E.g. if one plan has 70 results, another 80, third 10, only 60 (25+25+10) will be returned
          instead of paging, use max-results=1000000 with arbitrary large number
          E.g. the endpoint below will return all 160 (80+70+10) results
-         endpoint = 'result/%s.json?expand=results.result.vcsRevisions&max-results=1000000' % key
+         endpoint = 'result/%s.json?expand=results.result&max-results=1000000' % key
+
+        Example of an endpoint to get builds for project-plan pair:
+        http://localhost:8085/rest/api/latest/result/FER-DON.json?expand=results.result&max-results=1000000
+
+       VCSData:
+
+         It is possible to get revision's commit message and timestamp but only when hitting a separate endpoint per build result, e.g.
+         http://localhost:8085/rest/api/latest/result/FER-DON/74.json?expand=changes.change.files,vcsRevisions
+
+         "changes": {
+             "change": [
+                {
+                    "author": "totofernandel <toto.fernandel@gmail.com>",
+                    "changesetId": "769b1e9cce0d275db62fd6e062fe71d0fe180b35",
+                    "comment": "xyz",
+                    "date": "2017-07-01T19:39:25.000-06:00",
+                    "expand": "files",
+                    "files": {
+                        "file": [
+                            {
+                                "name": "test/test_test.py",
+                                "revision": "769b1e9cce0d275db62fd6e062fe71d0fe180b35"
+                            }
+                        ],
+                        "max-result": 1,
+                        "size": 1,
+                        "start-index": 0
+                    },
+                    "fullName": "Fernandel Toto",
+                    "userName": "toto"
+                }
+             ],
+            ...
+         "vcsRevisions": {
+             "expand": "vcsRevision",
+             "max-result": 1,
+             "size": 1,
+             "start-index": 0,
+             "vcsRevision": [
+                {
+                    "repositoryId": 360450,
+                    "repositoryName": "bamboo-camillo",
+                    "vcsRevisionKey": "769b1e9cce0d275db62fd6e062fe71d0fe180b35"
+                }
+             ]
+         }
+
         """
         raw_builds = []
         endpoint = 'result/%s.json?expand=results.result.vcsRevisions&max-results=1000000' % key
@@ -208,12 +237,6 @@ class BambooConnection(BLDConnection):
 
     def extractQualifyingBuilds(self, raw_builds, ref_time):
         build_count = 0
-        # ac_project = self.getAgileCentralProject(raw_builds[0]['projectName'])
-        # if ac_project not in self.builds:
-        #     self.builds[ac_project] = {}
-        # plan = BambooPlan(raw_builds[0]['plan'])
-        # self.builds[ac_project][plan] = []
-
         for record in raw_builds:
             timestamp = time_helper.secondsFromString(record['buildCompletedTime'])
             if timestamp >= ref_time:
@@ -303,9 +326,7 @@ class BambooBuild:
         self.plan      = BambooPlan(raw['plan'])
         self.started_time   = raw['buildStartedTime']
         self.completed_time = raw['buildCompletedTime']  # "2017-06-12T13:55:39.712-06:00"
-        #self.started_timestamp = TimeHelper(self.started_time).getTimestampFromString()
         self.started_timestamp = time_helper.secondsFromString(self.started_time)
-        #self.timestamp = TimeHelper(self.completed_time).getTimestampFromString()
         self.timestamp = time_helper.secondsFromString(self.completed_time)
         self.project   = raw['projectName']
         self.duration = int(raw['buildDuration'])
