@@ -6,7 +6,7 @@ BambooBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8 #yeti@rallydev.com:Vistabahn
         Workspace :  Alligators BLD Unigrations
-        Lookback  : 43800 # a month
+        Lookback  : 120 #min
 
     Bamboo:
         Protocol  :  http
@@ -15,7 +15,7 @@ BambooBuildConnector:
         Username  :  toto
         Password  :  totogithub
         AgileCentral_DefaultBuildProject :  Bamboo
-        Lookback  : 43800 # a month
+        Lookback  : 120 #min
 
         Projects:
             - Project: Fernandel

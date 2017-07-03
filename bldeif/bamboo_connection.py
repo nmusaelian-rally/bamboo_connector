@@ -1,5 +1,5 @@
 import sys, os
-import datetime
+#import datetime
 import urllib
 import socket
 import re
@@ -14,7 +14,9 @@ from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 from bldeif.utils.time_helper import TimeHelper
 from bldeif.utils.status_matchmaker import Matchmaker
 
+
 quote = urllib.parse.quote
+time_helper = TimeHelper()
 
 ############################################################################################
 __version__ = "0.0.1"
@@ -180,9 +182,21 @@ class BambooConnection(BLDConnection):
                         }
                     ]
          Is it possible to get revision's commit message and timestamp?
+         Yes, but only by hitting a separate endpoint per build result, e.g.
+         http://localhost:8085/rest/api/latest/result/FER-DON/74.json?expand=changes.change.files,vcsRevisions
+
+
+         Paging:
+
+         endpoint = 'result/%s.json?expand=results[0:200].result.vcsRevisions' % key
+         results[0:max] returns 25 results (one page) per plan. If there are more than 25 results per plan paging
+         will be necessary. E.g. if one plan has 70 results, another 80, third 10, only 60 (25+25+10) will be returned
+         instead of paging, use max-results=1000000 with arbitrary large number
+         E.g. the endpoint below will return all 160 (80+70+10) results
+         endpoint = 'result/%s.json?expand=results.result.vcsRevisions&max-results=1000000' % key
         """
         raw_builds = []
-        endpoint = 'result/%s.json?expand=results[0:100].result.vcsRevisions' % key
+        endpoint = 'result/%s.json?expand=results.result.vcsRevisions&max-results=1000000' % key
         headers = {'Content-Type': 'application/json'}
         url = "%s/%s" % (self.base_url, endpoint)
         response = requests.get(url, auth=self.creds, proxies=self.http_proxy, headers=headers)
@@ -201,7 +215,7 @@ class BambooConnection(BLDConnection):
         # self.builds[ac_project][plan] = []
 
         for record in raw_builds:
-            timestamp = TimeHelper(record['buildCompletedTime']).getTimestampFromString()
+            timestamp = time_helper.secondsFromString(record['buildCompletedTime'])
             if timestamp >= ref_time:
                 build_count += 1
                 # prep builds dict when there is at least one qualified build:
@@ -215,7 +229,7 @@ class BambooConnection(BLDConnection):
                 build = BambooBuild(record)
                 self.builds[ac_project][plan].append(build)
         if build_count > 1:
-            self.builds[ac_project][plan][::-1]
+            self.builds[ac_project][plan] = self.builds[ac_project][plan][::-1]
 
 
     def getAgileCentralProject(self, bamboo_project_name):
@@ -289,17 +303,19 @@ class BambooBuild:
         self.plan      = BambooPlan(raw['plan'])
         self.started_time   = raw['buildStartedTime']
         self.completed_time = raw['buildCompletedTime']  # "2017-06-12T13:55:39.712-06:00"
-        self.started_timestamp = TimeHelper(self.started_time).getTimestampFromString()
-        self.timestamp         = TimeHelper(self.completed_time).getTimestampFromString()
+        #self.started_timestamp = TimeHelper(self.started_time).getTimestampFromString()
+        self.started_timestamp = time_helper.secondsFromString(self.started_time)
+        #self.timestamp = TimeHelper(self.completed_time).getTimestampFromString()
+        self.timestamp = time_helper.secondsFromString(self.completed_time)
         self.project   = raw['projectName']
         self.duration = int(raw['buildDuration'])
 
     def as_tuple_data(self):
-        start_time = datetime.datetime.utcfromtimestamp(self.started_timestamp).strftime('%Y-%m-%dT%H:%M:%SZ')
+        iso_str_start = time_helper.stringFromSeconds(self.started_timestamp, '%Y-%m-%dT%H:%M:%SZ')
         matching_status = Matchmaker('Bamboo').matchStatus(str(self.state))
         build_data = [('Number', self.number),
                       ('Status', matching_status),
-                      ('Start', start_time),
+                      ('Start', iso_str_start),
                       ('Duration', self.duration / 1000.0),
                       ('Uri', self.url)]
         return build_data

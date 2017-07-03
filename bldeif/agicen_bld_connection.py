@@ -7,8 +7,11 @@ import bldeif.utils.ac_prefixes  as utils
 
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 from bldeif.connection import BLDConnection
+from bldeif.utils.time_helper import TimeHelper
 
 from pyral import Rally, rallySettings, RallyRESTAPIError
+
+time_helper = TimeHelper()
 
 ############################################################################################
 
@@ -280,8 +283,9 @@ class AgileCentralConnection(BLDConnection):
              in Python, ref_time will be a struct_time item:
                (tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst)
         """
-        ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", struct_ref_time)
-        ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  struct_ref_time)
+
+        ref_time_readable = time_helper.stringFromStruct(struct_ref_time, "%Y-%m-%d %H:%M:%S Z")
+        ref_time_iso      = time_helper.stringFromStruct(struct_ref_time, "%Y-%m-%dT%H:%M:%SZ")
         self.log.info("Detecting recently added Agile Central Builds")
         selectors = ['CreationDate >= %s' % ref_time_iso]
         log_msg = '   recent Builds query: %s' %  ' and '.join(selectors)
@@ -613,7 +617,8 @@ class AgileCentralConnection(BLDConnection):
 
         try:
             build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %-90.90s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
+            #self.log.debug("  Created Build: %-90.90s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
+            self.log.debug("  Created Build: %-20.20s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
         except Exception as msg:
             print("AgileCentralConnection._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()

@@ -5,14 +5,16 @@ from collections import OrderedDict
 import re
 import time
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError, logAllExceptions
+from bldeif.agicen_bld_connection import AgileCentralConnection
+from bldeif.bld_connector_runner import BuildConnectorRunner
 from bldeif.utils.klog       import ActivityLogger
+
 from bldeif.utils.konfabulus import Konfabulator
 from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector import BLDConnector
-from bldeif.agicen_bld_connection import AgileCentralConnection
-from bldeif.bld_connector_runner import BuildConnectorRunner
-
 from bldeif.utils.time_helper import TimeHelper
+
+time_helper = TimeHelper()
 
 logger = ActivityLogger('logs/test_bamboo_conn.log')
 
@@ -25,9 +27,9 @@ def test_bldconn_projects():
     assert 'DonCamillo' in project_details['Fernandel']['Plans']
     assert 'Ludovic Cruchot' in project_details['Fernandel']['Plans']
     last_run = '2017-06-24 00:00:00 Z'
-    ref_time = TimeHelper(last_run).getTimestampFromString()
+    ref_time = time_helper.parseTimeStringToStruct(last_run)
     recent_bld_builds = bld_connection.getRecentBuilds(ref_time)
-    print(recent_bld_builds)
+    assert len(recent_bld_builds)
 
 
 
