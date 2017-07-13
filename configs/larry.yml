@@ -10,10 +10,10 @@ BambooBuildConnector:
 
     Bamboo:
         Protocol  :  http
-        Server    :  localhost
+        Server    :  koljo03-s4576.ca.com
         Port      :  8085
-        Username  :  toto
-        Password  :  totogithub
+        Username  :  bamboozel
+        Password  :  rallydev
         AgileCentral_DefaultBuildProject :  Bamboo
         Lookback  : 120 #min
 
@@ -22,7 +22,6 @@ BambooBuildConnector:
               AgileCentral_Project: Rally Fernandel
               Plans:
                   - DonCamillo
-                  - Ludovic Cruchot
 
     Service:
         Preview       : False

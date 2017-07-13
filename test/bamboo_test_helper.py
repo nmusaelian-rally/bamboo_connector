@@ -7,9 +7,9 @@ import yaml
 '''
 To POST a build in bamboo:
 
-curl -X POST --user toto:totogithub http://localhost:8085/rest/api/latest/queue/FER-DON?os_authType=basic
+curl -X POST --user bamboozel:rallydev http://koljo03-s4576.ca.com:8085/rest/api/latest/queue/FER-DON?os_authType=basic
 
-curl --user toto:totogithub http://localhost:8085/rest/api/latest/result/FER-DON.json?expand=results[0].result
+curl --user bamboozel:rallydev http://koljo03-s4576.ca.com:8085/rest/api/latest/result/FER-DON.json?expand=results[0].result
 '''
 
 class BambooTestHelper():
@@ -58,27 +58,27 @@ def test_helper():
     ac     = helper.conf['BambooBuildConnector']['AgileCentral']
     serv   = helper.conf['BambooBuildConnector']['Service']
 
-    assert bamboo['Server'] == 'localhost'
+    assert bamboo['Server'] == 'koljo03-s4576.ca.com'
     assert ac['Workspace'] == 'Alligators BLD Unigrations'
     assert serv['ShowVCSData'] == False
     base_url = helper.construct_bamboo_base_url()
-    assert base_url == 'http://localhost:8085/rest/api/latest'
+    assert base_url == 'http://koljo03-s4576.ca.com:8085/rest/api/latest'
 
 def test_build():
     project_key = 'FER'
-    plan_key    = 'RET'
+    plan_key    = 'DON'
     response = helper.build(project_key, plan_key)
-    assert response.status_code == 200
+    assert response['buildResultKey'].startswith("%s-%s" %(project_key,plan_key))
 
 def test_get_latest_build():
     project_key = 'FER'
-    plan_key = 'RET'
+    plan_key = 'DON'
     response = helper.get_latest_bulid(project_key, plan_key)
     assert response.status_code == 200
     result = response.json()['results']['result'][0]
     assert result['projectName'] == 'Fernandel'
-    assert result['planName']    == 'ReturnOfDonComillio'
-    assert result['buildNumber'] >= 25
+    assert result['planName']    == 'DonCamillo'
+    assert result['buildNumber'] >= 3
     assert result['buildState']  == 'Successful'
     assert 'buildStartedTime'   in result
     assert 'buildCompletedTime' in result

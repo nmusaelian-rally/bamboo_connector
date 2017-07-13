@@ -30,7 +30,7 @@ def test_konfabulator():
     bamboo_conf = konf.topLevel('Bamboo')
     ac_conf = konf.topLevel('AgileCentral')
     srv_conf = konf.topLevel('Service')
-    assert bamboo_conf['Server'] == 'localhost'
+    assert bamboo_conf['Server'] == 'koljo03-s4576.ca.com'
     assert ac_conf['Workspace'] == 'Alligators BLD Unigrations'
     assert srv_conf['ShowVCSData'] == False
 
@@ -76,6 +76,6 @@ def test_bad_section():
 def test_projects():
     konf = Konfabulator('camillo.yml', logger, True)
     projects = konf.topLevel('Bamboo').get('Projects', None)
-    assert projects == [{'Plans': ['DonCamillo', 'Ludovic Cruchot'],
+    assert projects == [{'Plans': ['DonCamillo'],
                          'AgileCentral_Project': 'Rally Fernandel', 'Project': 'Fernandel'}]
 

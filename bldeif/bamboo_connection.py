@@ -35,7 +35,7 @@ class BambooConnection(BLDConnection):
         self.plans = [] #former self.inventory
 
     def name(self):
-        return "Babmoo"
+        return "Bamboo"
 
     def version(self):
         global __version__
@@ -268,7 +268,7 @@ class BambooConnection(BLDConnection):
         return satisfactory
 
     def dumpTargets(self):
-        for plan in self.inventory:
+        for plan in self.plan:
             self.log.debug('Plan: %s' % plan)
 
 
@@ -282,7 +282,7 @@ class BambooPlan:
         self.project   = self.full_name.replace(' - %s' % self.name, '')
 
         def __str__(self):
-            return "%s::%s" % (self.project, self.shortName)
+            return "%s::%s" % (self.project, self.name)
 
         def __repr__(self):
             return str(self)
