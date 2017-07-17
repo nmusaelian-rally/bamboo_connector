@@ -66,6 +66,23 @@ def test_top_levels():
     with open('configs/%s' % config_file, 'w') as sf:
         sf.write(orig_config_content)
 
+
+def test_encode():
+    config_file = 'camillo2.yml'
+    with open('configs/%s' % config_file, 'r') as sf:
+        orig_config_content = sf.read()
+    konf = useConfig(config_file, False)
+    assert konf.topLevel('AgileCentral').get('Workspace', None)
+    assert konf.topLevel('Bamboo').get('AgileCentral_DefaultBuildProject', None)
+    assert konf.topLevel('Service')   # This all gets defaulted in Konfabulus instantiation...
+    assert konf.topLevel('Service').get('SecurityLevel', None) == 'Encode'
+    with open('configs/%s' % config_file, 'r') as sf:
+        secured_config_content = sf.read()
+
+    assert secured_config_content.count("encoded-") == 3
+    with open('configs/%s' % config_file, 'w') as sf:
+        sf.write(orig_config_content)
+
 def test_bad_section():
     config_file = 'bad_section.yml'
     problem = 'Second section in config file must be Bamboo'

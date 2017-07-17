@@ -87,7 +87,7 @@ class SecurityManager:
             return True
 
         pwent_ix = hits[0]
-        conf_lines[pwent_ix] = '%s%-10.10s  :  %s\n' % (' ' * 8, target, protected_value)
+        conf_lines[pwent_ix] = '%s%-10.10s :  %s\n' % (' ' * 8, target, protected_value)
 
         enc_file_name = '%s.pwenc' % self.conf.config_file_path
         enf = open(enc_file_name, 'w', encoding='utf-8')

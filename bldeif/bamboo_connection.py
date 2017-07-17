@@ -164,6 +164,9 @@ class BambooConnection(BLDConnection):
             for raw_plan in project['plans']['plan']:
                 self.plans.append(BambooPlan(raw_plan))
 
+    def showQualifiedPlans(self):
+        # pretty print plans
+        pass
 
     def getBuildsPerPlan(self, key, ref_time):
         """

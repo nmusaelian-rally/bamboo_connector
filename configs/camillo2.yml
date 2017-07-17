@@ -1,0 +1,35 @@
+
+---
+BambooBuildConnector:
+
+    AgileCentral:
+        Server     :  rally1.rallydev.com
+        APIKey     :  encoded-X-z-J-R-R-k-F-R-Q-T-B-3-U-W-9-T-S-2-l-P-U-l-V-P-c-1-Z-s-T-W-p-l-U-W-Z-G-c-j-F-K-a-2-F-3-d-E-l-0-R-0-Z-I-d-H-J-0-e-D-g-=
+        Workspace  :  Alligators BLD Unigrations
+        Lookback   : 43800 # a month
+
+    Bamboo:
+        Protocol   :  http
+        Server     :  koljo03-s4576.ca.com
+        Port       :  8085
+        Username   :  encoded-Y-m-F-t-Y-m-9-v-e-m-V-s
+        Password   :  encoded-c-m-F-s-b-H-l-k-Z-X-Y-=
+        AgileCentral_DefaultBuildProject :  Bamboo
+        Lookback   : 43800 # a month
+
+        Projects:
+            - Project: Fernandel
+              AgileCentral_Project: Rally Fernandel
+              Plans:
+                  - DonCamillo
+
+    Service:
+        Preview       : False
+        LogLevel      : DEBUG
+        MaxBuilds     : 50
+        ShowVCSData   : False
+        SecurityLevel : Encode
+
+...
+# _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8 #yeti@rallydev.com:Vistabahn
+#toto:totogithub

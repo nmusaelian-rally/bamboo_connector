@@ -72,11 +72,11 @@ class BLDConnector:
         self.agicen_conf = config.topLevel('AgileCentral')
         self.bld_conf    = config.topLevel(self.bld_name)
         if not 'AgileCentral_DefaultBuildProject' in self.bld_conf:
-            msg = "The Jenkins section of the config is missing AgileCentral_DefaultBuildProject property"
-            raise ConfigurationError(msg)
+            msg = "The %s section of the config is missing AgileCentral_DefaultBuildProject property"
+            raise ConfigurationError(msg % self.bld_name)
         if not self.bld_conf['AgileCentral_DefaultBuildProject']:  # but no value exists for this...
-            msg = "The Bamboo section of the config is missing a value for AgileCentral_DefaultBuildProject property"
-            raise ConfigurationError(msg)
+            msg = "The %s section of the config is missing a value for AgileCentral_DefaultBuildProject property"
+            raise ConfigurationError(msg % self.bld_name)
         self.agicen_conf['Project'] = self.bld_conf['AgileCentral_DefaultBuildProject']
         self.svc_conf    = config.topLevel('Service')
         self.max_builds  = self.svc_conf.get('MaxBuilds', 20)
@@ -119,7 +119,7 @@ class BLDConnector:
         if self.agicen_conn and self.bld_conn and getattr(self.agicen_conn, 'set_integration_header'):
             agicen_headers = {'name'    : 'Agile Central BLDConnector for %s' % self.bld_name,
                               'version' : __version__,
-                              'vendor'  : 'Open Source contributors',
+                              'vendor'  : 'CA Technologies',
                               'other_version' : bld_backend_version
                             }
             self.agicen_conn.set_integration_header(agicen_headers)
@@ -207,26 +207,16 @@ class BLDConnector:
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per plan will be recorded on this run" % self.max_builds)
-        #if self.svc_conf.get('ShowVCSData', False):
-            #self.dumpChangesetInfo(unrecorded_builds)
+        if self.svc_conf.get('ShowVCSData', False):
+            self.dumpChangesetInfo(unrecorded_builds)
 
         recorded_builds = OrderedDict()
         builds_posted = {}
         # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
         unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))
         self.log.debug("About to process %d unrecorded builds" % len(unrecorded_builds))
-        # for job, build, project, view in unrecorded_builds:
-        #     if build.result == 'None':
-        #         self.log.warn("%s #%s job/build was not processed because is still running" % (job, build.number))
-        #         continue
-        #     #self.log.debug("current job: %s  build: %s" % (job, build))
-        #     if not job in builds_posted:
-        #         builds_posted[job] = 0
-        #     if builds_posted[job] >= self.max_builds:
-        #         continue
-        #     if preview_mode:
-        #         continue
-        for plan, build, project in unrecorded_builds:
+
+        for plan, build, ac_project in unrecorded_builds:
             if not build.finished:
                 self.log.warn("%s #%s plan/build was not processed because is still running" % (plan, build.number))
                 continue
@@ -237,7 +227,6 @@ class BLDConnector:
                 continue
             if preview_mode:
                 continue
-        for plan, build, ac_project in unrecorded_builds:
 
             try:
                 #changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(job, build, project)
@@ -292,21 +281,21 @@ class BLDConnector:
         return struct_agicen_ref_time, struct_bld_ref_time
 
 
-    def _showBuildInformation(self, agicen_builds, bld_builds):
-        ##
-        for project, plan_builds in agicen_builds.items():
-            print("Agile Central project: %s" % project)
-            for plan, builds in plan_builds.items():
-                print("    %-36.36s : %3d build items" % (plan, len(builds)))
-        print("")
-
-        ##
-        for view, plan_builds in bld_builds.items():
-            print("Jenkins View: %s" % view)
-            for plan, builds in plan_builds.items():
-                print("    %-36.36s : %3d build items" % (plan, len(builds)))
-        print("")
-        ##
+    # def _showBuildInformation(self, agicen_builds, bld_builds):
+    #     ##
+    #     for project, plan_builds in agicen_builds.items():
+    #         print("Agile Central project: %s" % project)
+    #         for plan, builds in plan_builds.items():
+    #             print("    %-36.36s : %3d build items" % (plan, len(builds)))
+    #     print("")
+    #
+    #     ##
+    #     for view, plan_builds in bld_builds.items():
+    #         print("Jenkins View: %s" % view)
+    #         for plan, builds in plan_builds.items():
+    #             print("    %-36.36s : %3d build items" % (plan, len(builds)))
+    #     print("")
+    #     ##
 
 
     def _identifyUnrecordedBuilds(self, agicen_builds, bld_builds):
@@ -357,7 +346,8 @@ class BLDConnector:
         return unrecorded_builds
 
 
-    # def dumpChangesetInfo(self, builds):
+    def dumpChangesetInfo(self, builds):
+        pass
     #     for job, build, project, view in builds:
     #         if not build.changeSets:
     #             continue

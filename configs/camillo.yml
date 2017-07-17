@@ -6,7 +6,7 @@ BambooBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8 #yeti@rallydev.com:Vistabahn
         Workspace :  Alligators BLD Unigrations
-        Lookback  : 43800 # a month
+        Lookback  :  4320 # three days # 43800 # a month
 
     Bamboo:
         Protocol  :  http

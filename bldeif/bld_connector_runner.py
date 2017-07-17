@@ -82,7 +82,7 @@ class BuildConnectorRunner(object):
             # for spec in log_spec:
             #     args = [arg for arg in args if arg != spec]
 
-        self.encode_credentials = True # why we set encode_credentials to True?
+        self.encode_credentials = True
         clear_text_creds = [opt for opt in options if opt in ['-c', '--c'] or opt.startswith('--cleartext')]
         if clear_text_creds:
             self.cleartext_flag = True
@@ -211,6 +211,9 @@ class BuildConnectorRunner(object):
         conf_file_size = os.path.getsize(config_file_path)
         self.log.info("%s last modified %s,  size: %d chars" % (config_file_path, last_conf_mod, conf_file_size))
         config = self.getConfiguration(config_name)
+        if self.cleartext_flag:
+            self.log.info("Running connector with cleartext flag. SecurityLevel will not be applied to credentials in cleartext")
+        config.applySecurityPolicy()
 
         secs_this_run   = time.time()     # be optimistic that the reflectBuildsInAgileCentral service will succeed
         zulu_str_this_run = time_helper.stringFromSeconds(secs_this_run, STD_TS_FMT)
